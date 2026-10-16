@@ -30,6 +30,8 @@ export interface ExplorerActions {
   select: (id: string, ctrl: boolean, shift: boolean, orderedIds: string[]) => void
   clearSelection: () => void
   sortBy: (key: SortKey) => void
+  toggleTypeFilter: (label: string) => void
+  clearTypeFilter: () => void
   toggleNode: (folder: FolderRef) => void
   dismissNotice: () => void
 }
@@ -135,6 +137,8 @@ export function ExplorerProvider({
         dispatch({ type: 'click', id, ctrl, shift, orderedIds }),
       clearSelection: () => dispatch({ type: 'clearSelection' }),
       sortBy: (key) => dispatch({ type: 'sort', key }),
+      toggleTypeFilter: (label) => dispatch({ type: 'toggleTypeFilter', label }),
+      clearTypeFilter: () => dispatch({ type: 'clearTypeFilter' }),
       toggleNode: (folder) => {
         const current = stateRef.current
         dispatch({ type: 'toggleExpand', id: folder.id })

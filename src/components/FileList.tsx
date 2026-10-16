@@ -1,4 +1,4 @@
-import { useMemo, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import type { FileSystemEntry } from '../lib/models/entry'
 import type { SortKey } from '../lib/models/sort'
 import { useExplorer } from '../state/ExplorerContext'
@@ -6,8 +6,9 @@ import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
 import { formatDate, formatElapsedDays, formatSize } from '../lib/utils/format'
 import { SCALE_GRADIENT, isLargeFile, scaleColor, sizeScalePosition } from '../lib/utils/largeFiles'
 import { sortEntries } from '../lib/utils/sortEntries'
+import { filterByTypes, getTypeOptions } from '../lib/utils/typeFilter'
 import { EmptyState } from './EmptyState'
-import { FileKindIcon, SortArrowIcon } from './icons'
+import { FileKindIcon, FilterIcon, SortArrowIcon } from './icons'
 
 const COLUMNS: Array<{ key: SortKey; label: string; className: string }> = [
   { key: 'name', label: 'שם', className: 'col-name' },
@@ -65,9 +66,88 @@ function Row({ entry, selected, onSelect, onOpen }: {
   )
 }
 
+function TypeFilterMenu({ options, selected, onToggle, onClear }: {
+  options: string[]
+  selected: string[]
+  onToggle: (label: string) => void
+  onClear: () => void
+}) {
+  return (
+    <div className="filter-menu" role="dialog" aria-label="סינון לפי סוג">
+      <div className="filter-menu__options">
+        {options.map((label) => (
+          <label key={label} className="filter-menu__option">
+            <input type="checkbox" checked={selected.includes(label)} onChange={() => onToggle(label)} />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+      <button type="button" className="filter-menu__clear" disabled={selected.length === 0} onClick={onClear}>
+        נקה סינון
+      </button>
+    </div>
+  )
+}
+
+function TypeHeader({ label, className, sortState, onSort, options, selected, onToggle, onClear }: {
+  label: string
+  className: string
+  sortState: 'ascending' | 'descending' | 'none'
+  onSort: () => void
+  options: string[]
+  selected: string[]
+  onToggle: (label: string) => void
+  onClear: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const active = selected.length > 0
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (event: globalThis.MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} role="columnheader" aria-sort={sortState} className={`${className} header-filterable`}>
+      <button type="button" className="header-cell header-filterable__sort" onClick={onSort}>
+        <span>{label}</span>
+        {sortState !== 'none' && (
+          <SortArrowIcon size={10} className={sortState === 'descending' ? 'sort sort--desc' : 'sort'} />
+        )}
+      </button>
+      <button
+        type="button"
+        className={active ? 'filter-button filter-button--active' : 'filter-button'}
+        aria-label="סינון לפי סוג"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        data-active={active}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <FilterIcon size={12} active={active} />
+      </button>
+      {open && <TypeFilterMenu options={options} selected={selected} onToggle={onToggle} onClear={onClear} />}
+    </div>
+  )
+}
+
 export function FileList() {
   const { state, actions } = useExplorer()
-  const sorted = useMemo(() => sortEntries(state.entries, state.sort), [state.entries, state.sort])
+  const typeOptions = useMemo(() => getTypeOptions(state.entries), [state.entries])
+  const filtered = useMemo(() => filterByTypes(state.entries, state.typeFilter), [state.entries, state.typeFilter])
+  const sorted = useMemo(() => sortEntries(filtered, state.sort), [filtered, state.sort])
   const orderedIds = useMemo(() => sorted.map((e) => e.id), [sorted])
   const selected = useMemo(() => new Set(state.selection), [state.selection])
 
@@ -81,6 +161,21 @@ export function FileList() {
       <div role="row" className="row row--header" onClick={(e) => e.stopPropagation()}>
         {COLUMNS.map(({ key, label, className }) => {
           const active = state.sort.key === key
+          if (key === 'type') {
+            return (
+              <TypeHeader
+                key={key}
+                label={label}
+                className={className}
+                sortState={active ? (state.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                onSort={() => actions.sortBy(key)}
+                options={typeOptions}
+                selected={state.typeFilter}
+                onToggle={actions.toggleTypeFilter}
+                onClear={actions.clearTypeFilter}
+              />
+            )
+          }
           return (
             <button
               key={key}
@@ -103,7 +198,7 @@ export function FileList() {
         <div role="columnheader" className="col-large header-static">{LARGE_FILES_LABEL}</div>
       </div>
       {sorted.length === 0 ? (
-        <EmptyState title="התיקייה הזו ריקה" />
+        <EmptyState title={state.typeFilter.length ? 'אין פריטים התואמים לסינון' : 'התיקייה הזו ריקה'} />
       ) : (
         sorted.map((entry) => (
           <Row

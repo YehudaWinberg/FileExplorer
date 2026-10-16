@@ -4,6 +4,7 @@ import { getExtension, getFileKind, getTypeLabel } from './fileTypes'
 import { formatElapsedDays, formatSize } from './format'
 import { SCALE_GRADIENT, isLargeFile, scaleColor, SCALE_STEPS, sizeScalePosition, sizeScaleStep } from './largeFiles'
 import { sortEntries } from './sortEntries'
+import { filterByTypes, getTypeOptions } from './typeFilter'
 
 function entry(name: string, kind: 'file' | 'folder', extra: Partial<FileSystemEntry> = {}): FileSystemEntry {
   return { id: name, name, kind, extension: kind === 'file' ? getExtension(name) : '', ...extra }
@@ -23,6 +24,32 @@ describe('fileTypes', () => {
     expect(getTypeLabel(entry('a.xyz', 'file'))).toBe('קובץ XYZ')
     expect(getTypeLabel(entry('LICENSE', 'file'))).toBe('קובץ')
     expect(getTypeLabel(entry('dir', 'folder'))).toBe('תיקיית קבצים')
+  })
+})
+
+describe('typeFilter', () => {
+  const entries = [
+    entry('a.pdf', 'file'),
+    entry('b.png', 'file'),
+    entry('c.jpg', 'file'),
+    entry('d.png', 'file'),
+    entry('dir', 'folder'),
+  ]
+
+  it('lists each existing type once (JPEG and PNG separately)', () => {
+    const options = getTypeOptions(entries)
+    expect(options).toHaveLength(4)
+    expect(options).toEqual(expect.arrayContaining(['מסמך PDF', 'תמונת PNG', 'תמונת JPEG', 'תיקיית קבצים']))
+  })
+
+  it('returns everything when no type is selected', () => {
+    expect(filterByTypes(entries, [])).toBe(entries)
+  })
+
+  it('filters by one or several types, including folders only', () => {
+    expect(filterByTypes(entries, ['תמונת PNG']).map((e) => e.name)).toEqual(['b.png', 'd.png'])
+    expect(filterByTypes(entries, ['תמונת PNG', 'מסמך PDF']).map((e) => e.name)).toEqual(['a.pdf', 'b.png', 'd.png'])
+    expect(filterByTypes(entries, ['תיקיית קבצים']).map((e) => e.name)).toEqual(['dir'])
   })
 })
 

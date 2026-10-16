@@ -37,6 +37,26 @@ describe('navigation', () => {
   })
 })
 
+describe('type filter', () => {
+  it('toggles types on and off and clears the filter', () => {
+    let state = run({ type: 'toggleTypeFilter', label: 'מסמך PDF' }, { type: 'toggleTypeFilter', label: 'תיקיית קבצים' })
+    expect(state.typeFilter).toEqual(['מסמך PDF', 'תיקיית קבצים'])
+    state = explorerReducer(state, { type: 'toggleTypeFilter', label: 'מסמך PDF' })
+    expect(state.typeFilter).toEqual(['תיקיית קבצים'])
+    state = explorerReducer(state, { type: 'clearTypeFilter' })
+    expect(state.typeFilter).toEqual([])
+  })
+
+  it('resets the filter when a folder is loaded by navigation', () => {
+    const state = run(
+      { type: 'toggleTypeFilter', label: 'מסמך PDF' },
+      { type: 'navigate', location: at(root) },
+    )
+    expect(state.typeFilter).toEqual([])
+    expect(explorerReducer({ ...state, typeFilter: ['x'] }, { type: 'back' }).typeFilter).toEqual([])
+  })
+})
+
 describe('selection', () => {
   const ids = ['a', 'b', 'c', 'd']
   const click = (state: ExplorerState, id: string, ctrl = false, shift = false) =>

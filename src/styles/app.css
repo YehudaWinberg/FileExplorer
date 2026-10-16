@@ -406,6 +406,84 @@ button.crumb:hover {
   justify-content: flex-end;
 }
 
+.row > .header-filterable {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-inline: 0;
+  overflow: visible;
+}
+
+.header-filterable__sort {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+}
+
+.filter-button:hover {
+  background: var(--bg-hover);
+}
+
+.filter-button--active {
+  color: var(--accent, #0067c0);
+}
+
+.filter-menu {
+  position: absolute;
+  top: 100%;
+  inset-inline-start: 0;
+  z-index: 10;
+  min-width: 180px;
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-layer);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+}
+
+.filter-menu__options {
+  overflow-y: auto;
+}
+
+.filter-menu__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.filter-menu__option:hover {
+  background: var(--bg-hover);
+}
+
+.filter-menu__clear {
+  padding: 4px 6px;
+  border-top: 1px solid var(--border);
+  text-align: start;
+}
+
+.filter-menu__clear:disabled {
+  opacity: 0.5;
+}
+
 .header-static {
   display: flex;
   align-items: center;

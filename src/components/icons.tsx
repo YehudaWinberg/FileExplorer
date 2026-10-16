@@ -44,6 +44,14 @@ export const ChevronIcon = (p: IconProps) => (
 export const SortArrowIcon = (p: IconProps) => (
   <Stroke {...p}><path d="M4 9.5 8 5.5l4 4" /></Stroke>
 )
+export const FilterIcon = ({ active, ...p }: IconProps & { active?: boolean }) => (
+  <Stroke {...p}>
+    <path
+      d="M2.5 3h11L9.5 8v4.5l-3 1.5V8z"
+      fill={active ? 'currentColor' : 'none'}
+    />
+  </Stroke>
+)
 export const HomeIcon = (p: IconProps) => (
   <Stroke {...p}><path d="M2.5 7.5 8 2.5l5.5 5M4 6.5v7h8v-7M6.5 13.5v-4h3v4" /></Stroke>
 )

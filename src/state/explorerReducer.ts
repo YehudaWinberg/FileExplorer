@@ -22,6 +22,8 @@ export interface ExplorerState {
   selection: string[]
   anchor: string | null
   sort: SortState
+  /** תוויות סוג נבחרות לסינון; ריק = ללא סינון. */
+  typeFilter: string[]
   expanded: Record<string, boolean>
   children: Record<string, FolderRef[]>
   treeErrors: Record<string, string>
@@ -40,6 +42,7 @@ export const initialState: ExplorerState = {
   selection: [],
   anchor: null,
   sort: { key: 'name', direction: 'asc' },
+  typeFilter: [],
   expanded: {},
   children: {},
   treeErrors: {},
@@ -58,6 +61,8 @@ export type ExplorerAction =
   | { type: 'click'; id: string; ctrl: boolean; shift: boolean; orderedIds: string[] }
   | { type: 'clearSelection' }
   | { type: 'sort'; key: SortKey }
+  | { type: 'toggleTypeFilter'; label: string }
+  | { type: 'clearTypeFilter' }
   | { type: 'expand'; ids: string[] }
   | { type: 'toggleExpand'; id: string }
   | { type: 'childrenLoaded'; id: string; children: FolderRef[] }
@@ -76,6 +81,7 @@ function enter(state: ExplorerState, index: number): ExplorerState {
     entries: [],
     selection: [],
     anchor: null,
+    typeFilter: [],
     error: null,
     status: isFolder ? 'loading' : 'idle',
   }
@@ -148,6 +154,15 @@ export function explorerReducer(state: ExplorerState, action: ExplorerAction): E
             ? { key: action.key, direction: state.sort.direction === 'asc' ? 'desc' : 'asc' }
             : { key: action.key, direction: 'asc' },
       }
+    case 'toggleTypeFilter':
+      return {
+        ...state,
+        typeFilter: state.typeFilter.includes(action.label)
+          ? state.typeFilter.filter((l) => l !== action.label)
+          : [...state.typeFilter, action.label],
+      }
+    case 'clearTypeFilter':
+      return state.typeFilter.length ? { ...state, typeFilter: [] } : state
     case 'expand': {
       const expanded = { ...state.expanded }
       for (const id of action.ids) expanded[id] = true
