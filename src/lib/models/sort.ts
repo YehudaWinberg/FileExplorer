@@ -1,4 +1,4 @@
-export type SortKey = 'name' | 'modified' | 'type' | 'size'
+export type SortKey = 'name' | 'modified' | 'elapsed' | 'type' | 'size'
 export type SortDirection = 'asc' | 'desc'
 
 export interface SortState {

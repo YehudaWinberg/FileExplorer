@@ -12,6 +12,26 @@ export function formatSize(bytes: number | undefined): string {
   return `${numberFormat.format(bytes / GB)} GB`
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+/** מספר ימים קלנדריים שעברו מאז timestamp (חצות לחצות, לפי אזור הזמן המקומי). */
+function calendarDaysBetween(timestamp: number, now: number): number {
+  const startOfDay = (t: number) => {
+    const d = new Date(t)
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
+  }
+  return Math.round((startOfDay(now) - startOfDay(timestamp)) / MS_PER_DAY)
+}
+
+/** "היום" / "אתמול" / "X ימים"; ריק כשאין תאריך שינוי. */
+export function formatElapsedDays(timestamp: number | undefined, now: number = Date.now()): string {
+  if (timestamp === undefined) return ''
+  const days = calendarDaysBetween(timestamp, now)
+  if (days <= 0) return 'היום'
+  if (days === 1) return 'אתמול'
+  return `${days} ימים`
+}
+
 export function formatDate(timestamp: number | undefined): string {
   return timestamp === undefined ? '' : dateFormat.format(new Date(timestamp))
 }

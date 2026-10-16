@@ -3,7 +3,7 @@ import type { FileSystemEntry } from '../lib/models/entry'
 import type { SortKey } from '../lib/models/sort'
 import { useExplorer } from '../state/ExplorerContext'
 import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
-import { formatDate, formatSize } from '../lib/utils/format'
+import { formatDate, formatElapsedDays, formatSize } from '../lib/utils/format'
 import { sortEntries } from '../lib/utils/sortEntries'
 import { EmptyState } from './EmptyState'
 import { FileKindIcon, SortArrowIcon } from './icons'
@@ -11,6 +11,7 @@ import { FileKindIcon, SortArrowIcon } from './icons'
 const COLUMNS: Array<{ key: SortKey; label: string; className: string }> = [
   { key: 'name', label: 'שם', className: 'col-name' },
   { key: 'modified', label: 'תאריך שינוי', className: 'col-date' },
+  { key: 'elapsed', label: 'כמה זמן עבר מהשינוי האחרון', className: 'col-elapsed' },
   { key: 'type', label: 'סוג', className: 'col-type' },
   { key: 'size', label: 'גודל', className: 'col-size' },
 ]
@@ -34,6 +35,7 @@ function Row({ entry, selected, onSelect, onOpen }: {
         <span className="ellipsis" title={entry.name}>{entry.name}</span>
       </div>
       <div role="cell" className="col-date">{formatDate(entry.modified)}</div>
+      <div role="cell" className="col-elapsed">{formatElapsedDays(entry.modified)}</div>
       <div role="cell" className="col-type">{getTypeLabel(entry)}</div>
       <div role="cell" className="col-size">{entry.kind === 'file' ? formatSize(entry.size) : ''}</div>
     </div>

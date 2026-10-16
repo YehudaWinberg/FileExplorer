@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FileSystemEntry } from '../models/entry'
 import { getExtension, getFileKind, getTypeLabel } from './fileTypes'
-import { formatSize } from './format'
+import { formatElapsedDays, formatSize } from './format'
 import { sortEntries } from './sortEntries'
 
 function entry(name: string, kind: 'file' | 'folder', extra: Partial<FileSystemEntry> = {}): FileSystemEntry {
@@ -35,6 +35,30 @@ describe('formatSize', () => {
   })
 })
 
+describe('formatElapsedDays', () => {
+  const now = new Date(2026, 9, 16, 12, 0).getTime()
+  const at = (day: number, hour = 12) => new Date(2026, 9, day, hour, 0).getTime()
+
+  it('returns "היום" for a change made today', () => {
+    expect(formatElapsedDays(at(16, 0), now)).toBe('היום')
+    expect(formatElapsedDays(at(16, 11), now)).toBe('היום')
+  })
+
+  it('returns "אתמול" by calendar day, not 24 hours', () => {
+    expect(formatElapsedDays(at(15), now)).toBe('אתמול')
+    expect(formatElapsedDays(new Date(2026, 9, 15, 23, 59).getTime(), new Date(2026, 9, 16, 0, 1).getTime())).toBe('אתמול')
+  })
+
+  it('returns the number of days for older changes', () => {
+    expect(formatElapsedDays(at(14), now)).toBe('2 ימים')
+    expect(formatElapsedDays(new Date(2026, 8, 16, 12, 0).getTime(), now)).toBe('30 ימים')
+  })
+
+  it('returns empty string when there is no modified date', () => {
+    expect(formatElapsedDays(undefined, now)).toBe('')
+  })
+})
+
 describe('sortEntries', () => {
   const entries = [
     entry('b.txt', 'file', { size: 10, modified: 2 }),
@@ -58,6 +82,11 @@ describe('sortEntries', () => {
   it('sorts files by size and modified date', () => {
     expect(sortEntries(entries, { key: 'size', direction: 'desc' }).slice(2).map((e) => e.name)).toEqual(['a.txt', 'b.txt'])
     expect(sortEntries(entries, { key: 'modified', direction: 'asc' }).slice(2).map((e) => e.name)).toEqual(['a.txt', 'b.txt'])
+  })
+
+  it('sorts by elapsed time: newest first when ascending', () => {
+    expect(sortEntries(entries, { key: 'elapsed', direction: 'asc' }).slice(2).map((e) => e.name)).toEqual(['b.txt', 'a.txt'])
+    expect(sortEntries(entries, { key: 'elapsed', direction: 'desc' }).slice(2).map((e) => e.name)).toEqual(['a.txt', 'b.txt'])
   })
 
   it('does not mutate the input', () => {

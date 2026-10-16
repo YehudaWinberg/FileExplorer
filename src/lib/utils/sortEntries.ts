@@ -12,6 +12,8 @@ function compareBy(a: FileSystemEntry, b: FileSystemEntry, key: SortState['key']
       return collator.compare(getTypeLabel(a), getTypeLabel(b))
     case 'size':
       return (a.size ?? 0) - (b.size ?? 0)
+    case 'elapsed':
+      return (b.modified ?? 0) - (a.modified ?? 0)
     case 'modified':
       return (a.modified ?? 0) - (b.modified ?? 0)
   }

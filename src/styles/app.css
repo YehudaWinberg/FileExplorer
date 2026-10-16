@@ -336,7 +336,7 @@ button.crumb:hover {
 
 .row {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 150px 140px 90px;
+  grid-template-columns: minmax(180px, 1fr) 150px 120px 140px 90px;
   align-items: center;
   height: var(--row-height);
   padding-inline: 8px;
