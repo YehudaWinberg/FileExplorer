@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { FileSystemEntry } from '../models/entry'
 import { getExtension, getFileKind, getTypeLabel } from './fileTypes'
 import { formatElapsedDays, formatSize } from './format'
+import { SCALE_GRADIENT, isLargeFile, scaleColor, SCALE_STEPS, sizeScalePosition, sizeScaleStep } from './largeFiles'
 import { sortEntries } from './sortEntries'
 
 function entry(name: string, kind: 'file' | 'folder', extra: Partial<FileSystemEntry> = {}): FileSystemEntry {
@@ -93,5 +94,45 @@ describe('sortEntries', () => {
     const copy = [...entries]
     sortEntries(entries, { key: 'size', direction: 'asc' })
     expect(entries).toEqual(copy)
+  })
+})
+
+describe('largeFiles', () => {
+  const MB = 1024 * 1024
+
+  it('treats images as large only above 10MB', () => {
+    expect(isLargeFile(entry('a.png', 'file', { size: 10 * MB }))).toBe(false)
+    expect(isLargeFile(entry('a.png', 'file', { size: 10 * MB + 1 }))).toBe(true)
+  })
+
+  it('treats other files as large only above 50MB, and folders never', () => {
+    expect(isLargeFile(entry('a.zip', 'file', { size: 50 * MB }))).toBe(false)
+    expect(isLargeFile(entry('a.zip', 'file', { size: 50 * MB + 1 }))).toBe(true)
+    expect(isLargeFile(entry('dir', 'folder'))).toBe(false)
+    expect(isLargeFile(entry('a.zip', 'file'))).toBe(false)
+  })
+
+  it('maps size to a clamped position from 0 to 1', () => {
+    expect(sizeScalePosition(0)).toBe(0)
+    expect(sizeScalePosition(512 * MB)).toBeCloseTo(0.5, 1)
+    expect(sizeScalePosition(1024 * MB)).toBe(1)
+    expect(sizeScalePosition(5 * 1024 * MB)).toBe(1)
+  })
+
+  it('splits the 0..1GB range into 102 steps of 10MB', () => {
+    expect(SCALE_STEPS).toBe(102)
+    expect(sizeScaleStep(10 * MB - 1)).toBe(0)
+    expect(sizeScaleStep(10 * MB)).toBe(1)
+    expect(sizeScaleStep(25 * MB)).toBe(2)
+    expect(sizeScaleStep(1019 * MB)).toBe(101)
+    expect(sizeScaleStep(1020 * MB)).toBe(102)
+  })
+
+  it('goes from soft green on the left to strong red on the right', () => {
+    expect(scaleColor(0)).toBe('hsl(120 35% 65%)')
+    expect(scaleColor(0.5)).toBe('hsl(60 63% 55%)')
+    expect(scaleColor(1)).toBe('hsl(0 90% 45%)')
+    expect(SCALE_GRADIENT.startsWith('linear-gradient(to right, hsl(120')).toBe(true)
+    expect(SCALE_GRADIENT.endsWith('hsl(0 90% 45%))')).toBe(true)
   })
 })
