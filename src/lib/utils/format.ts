@@ -12,7 +12,14 @@ export function formatSize(bytes: number | undefined): string {
   return `${numberFormat.format(bytes / GB)} GB`
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000
+const gbFormat = new Intl.NumberFormat('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** סך גודל ב-GB (בסיס 1024) עם שתי ספרות אחרי הנקודה, תמיד ביחידת GB. */
+export function formatTotalGb(bytes: number): string {
+  return `${gbFormat.format(bytes / 1024 ** 3)} GB`
+}
+
+const MS_PER_DAY =24 * 60 * 60 * 1000
 
 /** מספר ימים קלנדריים שעברו מאז timestamp (חצות לחצות, לפי אזור הזמן המקומי). */
 function calendarDaysBetween(timestamp: number, now: number): number {

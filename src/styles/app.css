@@ -55,6 +55,19 @@ ul {
   height: 100%;
 }
 
+/* שורות קבועות: גם בלי הודעה (שורה 3) ה-body תמיד בשורה הגמישה וה-statusbar בתחתית. */
+.app > .notice {
+  grid-row: 3;
+}
+
+.app > .body {
+  grid-row: 4;
+}
+
+.app > .statusbar {
+  grid-row: 5;
+}
+
 .body {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) auto;

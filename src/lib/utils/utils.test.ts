@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { FileSystemEntry } from '../models/entry'
 import { getExtension, getFileKind, getTypeLabel } from './fileTypes'
-import { formatElapsedDays, formatSize } from './format'
+import { formatElapsedDays, formatSize, formatTotalGb } from './format'
+import { summarizeEntries } from './summary'
 import { SCALE_GRADIENT, isLargeFile, scaleColor, SCALE_STEPS, sizeScalePosition, sizeScaleStep } from './largeFiles'
 import { sortEntries } from './sortEntries'
 import { filterByTypes, getTypeOptions } from './typeFilter'
@@ -163,3 +164,31 @@ describe('largeFiles', () => {
     expect(SCALE_GRADIENT.endsWith('hsl(0 90% 45%))')).toBe(true)
   })
 })
+
+describe('summarizeEntries / formatTotalGb', () => {
+  const GB = 1024 ** 3
+
+  it('counts files and folders and sums file sizes', () => {
+    const entries = [
+      entry('a.txt', 'file', { size: GB }),
+      entry('b.txt', 'file', { size: GB / 2 }),
+      entry('dir', 'folder'),
+      entry('c.txt', 'file'),
+    ]
+    expect(summarizeEntries(entries)).toEqual({ count: 4, totalBytes: 1.5 * GB })
+    expect(summarizeEntries([])).toEqual({ count: 0, totalBytes: 0 })
+  })
+
+  it('summarizes only the filtered entries', () => {
+    const entries = [entry('a.txt', 'file', { size: GB }), entry('b.pdf', 'file', { size: 2 * GB })]
+    const shown = filterByTypes(entries, [getTypeLabel(entries[1])])
+    expect(summarizeEntries(shown)).toEqual({ count: 1, totalBytes: 2 * GB })
+  })
+
+  it('always formats in GB with two decimals', () => {
+    expect(formatTotalGb(0)).toBe('0.00 GB')
+    expect(formatTotalGb(1.5 * GB)).toBe('1.50 GB')
+    expect(formatTotalGb(1024 * 1024)).toBe('0.00 GB')
+  })
+})
+
