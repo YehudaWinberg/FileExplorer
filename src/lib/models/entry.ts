@@ -44,3 +44,8 @@ export function folderChain(folder: FolderRef): FolderRef[] {
   for (let f: FolderRef | null = folder; f; f = f.parent) chain.unshift(f)
   return chain
 }
+
+/** מיקום פריט ביחס לתיקיית השורש שנבחרה (ללא שם השורש), למשל "Documents/Report.pdf". */
+export function relativePath(folder: FolderRef, name: string): string {
+  return [...folderChain(folder).slice(1).map((f) => f.name), name].join('/')
+}

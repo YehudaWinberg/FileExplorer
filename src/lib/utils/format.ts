@@ -42,3 +42,12 @@ export function formatElapsedDays(timestamp: number | undefined, now: number = D
 export function formatDate(timestamp: number | undefined): string {
   return timestamp === undefined ? '' : dateFormat.format(new Date(timestamp))
 }
+
+const mbFormat = new Intl.NumberFormat('he-IL', { maximumFractionDigits: 2 })
+
+/** גודל ביחידת MB (בסיס 1024) עם עד שתי ספרות אחרי הנקודה. */
+export function formatSizeMb(bytes: number): string {
+  const mb = bytes / 1024 ** 2
+  if (bytes > 0 && mb < 0.01) return 'פחות מ-0.01 MB'
+  return `${mbFormat.format(mb)} MB`
+}
