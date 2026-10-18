@@ -201,13 +201,15 @@ describe('search by name in the current folder', () => {
     await openRoot()
     await act(async () => fireEvent.click(row('photo.jpg')))
     expect(details()).not.toBeNull()
-    expect(pending.map((p) => p.name)).toEqual(['photo.jpg'])
+    // קובצי ה-TXT נקראים ברקע לספירת שורות; כאן רלוונטית רק קריאת התמונה.
+    const photo = pending.filter((p) => p.name === 'photo.jpg')
+    expect(photo).toHaveLength(1)
 
     await type('repo')
     expect(details()).toBeNull()
 
     // נתוני התמונה מגיעים אחרי שהבחירה בוטלה, ואסור שיופיעו.
-    await act(async () => pending[0].resolve())
+    await act(async () => photo[0].resolve())
     await act(async () => {})
     expect(details()).toBeNull()
 

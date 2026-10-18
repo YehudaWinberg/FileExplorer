@@ -12,6 +12,11 @@ export function formatSize(bytes: number | undefined): string {
   return `${numberFormat.format(bytes / GB)} GB`
 }
 
+/** מספר שלם עם מפריד אלפים, למשל 1,234. */
+export function formatCount(value: number): string {
+  return numberFormat.format(value)
+}
+
 const gbFormat = new Intl.NumberFormat('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /** סך גודל ב-GB (בסיס 1024) עם שתי ספרות אחרי הנקודה, תמיד ביחידת GB. */

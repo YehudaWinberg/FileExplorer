@@ -413,7 +413,7 @@ button.crumb:hover {
 
 .row {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 150px 120px 140px 90px 200px;
+  grid-template-columns: minmax(180px, 1fr) 150px 120px 140px 90px 100px 200px;
   align-items: center;
   height: var(--row-height);
   padding-inline: 8px;
@@ -566,6 +566,41 @@ button.crumb:hover {
   align-items: center;
   height: 100%;
   padding-inline: 6px;
+}
+
+.col-lines {
+  text-align: end;
+}
+
+.header-static.col-lines {
+  justify-content: flex-end;
+}
+
+.line-count--error {
+  color: var(--danger-text);
+}
+
+.line-count__spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  vertical-align: middle;
+  border: 2px solid var(--border);
+  border-top-color: var(--text-secondary);
+  border-radius: 50%;
+  animation: line-count-spin 0.8s linear infinite;
+}
+
+@keyframes line-count-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line-count__spinner {
+    animation: none;
+  }
 }
 
 .col-large {

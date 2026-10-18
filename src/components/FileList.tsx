@@ -3,13 +3,14 @@ import type { FileSystemEntry } from '../lib/models/entry'
 import type { SortKey } from '../lib/models/sort'
 import { useExplorer } from '../state/ExplorerContext'
 import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
-import { formatDate, formatElapsedDays, formatSize } from '../lib/utils/format'
+import { formatCount, formatDate, formatElapsedDays, formatSize } from '../lib/utils/format'
 import { SCALE_GRADIENT, isLargeFile, scaleColor, sizeScalePosition } from '../lib/utils/largeFiles'
 import { sortEntries } from '../lib/utils/sortEntries'
 import { filterByName, normalizeQuery } from '../lib/utils/nameSearch'
 import { filterByTypes, getTypeOptions } from '../lib/utils/typeFilter'
 import { EmptyState } from './EmptyState'
 import { CloseIcon, FileKindIcon, FilterIcon, SearchIcon, SortArrowIcon } from './icons'
+import { useLineCounts, type LineCount } from './useLineCounts'
 
 const COLUMNS: Array<{ key: SortKey; label: string; className: string }> = [
   { key: 'name', label: 'שם', className: 'col-name' },
@@ -20,6 +21,24 @@ const COLUMNS: Array<{ key: SortKey; label: string; className: string }> = [
 ]
 
 const LARGE_FILES_LABEL = 'סימון קבצים גדולים'
+const LINE_COUNT_LABEL = 'מספר שורות'
+const COUNTING_LINES = 'סופר שורות...'
+
+/** מספר השורות בקובץ TXT; מקף עבור כל פריט אחר. */
+function LineCountCell({ count }: { count: LineCount | null }) {
+  if (!count) return <div role="cell" className="col-lines">—</div>
+  if (count.status === 'loading') {
+    return (
+      <div role="cell" className="col-lines" aria-busy="true" aria-label={COUNTING_LINES} title={COUNTING_LINES}>
+        <span className="line-count__spinner" />
+      </div>
+    )
+  }
+  if (count.status === 'error') {
+    return <div role="cell" className="col-lines line-count--error" title={count.message}>שגיאת קריאה</div>
+  }
+  return <div role="cell" className="col-lines">{formatCount(count.value)}</div>
+}
 
 function LargeFileCell({ entry }: { entry: FileSystemEntry }) {
   if (entry.kind !== 'file' || entry.size === undefined) return <div role="cell" className="col-large" />
@@ -40,9 +59,10 @@ function LargeFileCell({ entry }: { entry: FileSystemEntry }) {
   )
 }
 
-function Row({ entry, selected, onSelect, onOpen }: {
+function Row({ entry, selected, lineCount, onSelect, onOpen }: {
   entry: FileSystemEntry
   selected: boolean
+  lineCount: LineCount | null
   onSelect: (event: MouseEvent) => void
   onOpen: () => void
 }) {
@@ -62,6 +82,7 @@ function Row({ entry, selected, onSelect, onOpen }: {
       <div role="cell" className="col-elapsed">{formatElapsedDays(entry.modified)}</div>
       <div role="cell" className="col-type">{getTypeLabel(entry)}</div>
       <div role="cell" className="col-size">{entry.kind === 'file' ? formatSize(entry.size) : ''}</div>
+      <LineCountCell count={lineCount} />
       <LargeFileCell entry={entry} />
     </div>
   )
@@ -179,6 +200,7 @@ export function FileList() {
   const sorted = useMemo(() => sortEntries(filtered, state.sort), [filtered, state.sort])
   const orderedIds = useMemo(() => sorted.map((e) => e.id), [sorted])
   const selected = useMemo(() => new Set(state.selection), [state.selection])
+  const lineCountOf = useLineCounts(state.entries)
 
   if (state.status === 'loading') return <EmptyState title="טוען..." />
   if (state.status === 'error') {
@@ -227,6 +249,7 @@ export function FileList() {
                 </button>
               )
             })}
+            <div role="columnheader" className="col-lines header-static">{LINE_COUNT_LABEL}</div>
             <div role="columnheader" className="col-large header-static">{LARGE_FILES_LABEL}</div>
           </div>
           {sorted.length === 0 ? (
@@ -241,6 +264,7 @@ export function FileList() {
                 key={entry.id}
                 entry={entry}
                 selected={selected.has(entry.id)}
+                lineCount={lineCountOf(entry)}
                 onSelect={(event) => {
                   event.stopPropagation()
                   actions.select(entry.id, event.ctrlKey || event.metaKey, event.shiftKey, orderedIds)
