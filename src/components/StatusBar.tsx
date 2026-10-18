@@ -1,4 +1,5 @@
 import { formatTotalGb } from '../lib/utils/format'
+import { filterByName } from '../lib/utils/nameSearch'
 import { summarizeEntries } from '../lib/utils/summary'
 import { filterByTypes } from '../lib/utils/typeFilter'
 import { useExplorer } from '../state/ExplorerContext'
@@ -8,7 +9,7 @@ export function StatusBar() {
   const isFolder = location.type === 'folder' && state.status === 'idle'
   const folders = state.entries.filter((e) => e.kind === 'folder').length
   const files = state.entries.length - folders
-  const summary = summarizeEntries(filterByTypes(state.entries, state.typeFilter))
+  const summary = summarizeEntries(filterByTypes(filterByName(state.entries, state.searchQuery), state.typeFilter))
 
   return (
     <footer className="statusbar" aria-live="polite">

@@ -6,9 +6,10 @@ import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
 import { formatDate, formatElapsedDays, formatSize } from '../lib/utils/format'
 import { SCALE_GRADIENT, isLargeFile, scaleColor, sizeScalePosition } from '../lib/utils/largeFiles'
 import { sortEntries } from '../lib/utils/sortEntries'
+import { filterByName, normalizeQuery } from '../lib/utils/nameSearch'
 import { filterByTypes, getTypeOptions } from '../lib/utils/typeFilter'
 import { EmptyState } from './EmptyState'
-import { FileKindIcon, FilterIcon, SortArrowIcon } from './icons'
+import { CloseIcon, FileKindIcon, FilterIcon, SearchIcon, SortArrowIcon } from './icons'
 
 const COLUMNS: Array<{ key: SortKey; label: string; className: string }> = [
   { key: 'name', label: 'שם', className: 'col-name' },
@@ -143,10 +144,38 @@ function TypeHeader({ label, className, sortState, onSort, options, selected, on
   )
 }
 
+const SEARCH_LABEL = 'חיפוש בתיקייה הנוכחית'
+const NO_SEARCH_RESULTS = 'אין פריטים התואמים לחיפוש שלך'
+
+function SearchBox({ query, onChange }: { query: string; onChange: (query: string) => void }) {
+  return (
+    <div className="search-bar">
+      <div className="search-box">
+        <SearchIcon size={14} className="search-box__icon" />
+        <input
+          type="search"
+          className="search-box__input"
+          placeholder="חיפוש לפי שם בתיקייה הנוכחית"
+          aria-label={SEARCH_LABEL}
+          value={query}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        {query !== '' && (
+          <button type="button" className="search-box__clear" aria-label="ניקוי החיפוש" title="ניקוי החיפוש" onClick={() => onChange('')}>
+            <CloseIcon size={12} />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function FileList() {
   const { state, actions } = useExplorer()
   const typeOptions = useMemo(() => getTypeOptions(state.entries), [state.entries])
-  const filtered = useMemo(() => filterByTypes(state.entries, state.typeFilter), [state.entries, state.typeFilter])
+  const searched = useMemo(() => filterByName(state.entries, state.searchQuery), [state.entries, state.searchQuery])
+  const filtered = useMemo(() => filterByTypes(searched, state.typeFilter), [searched, state.typeFilter])
+  const searching = normalizeQuery(state.searchQuery) !== ''
   const sorted = useMemo(() => sortEntries(filtered, state.sort), [filtered, state.sort])
   const orderedIds = useMemo(() => sorted.map((e) => e.id), [sorted])
   const selected = useMemo(() => new Set(state.selection), [state.selection])
@@ -157,62 +186,71 @@ export function FileList() {
   }
 
   return (
-    <div className="list" role="table" aria-label="תוכן התיקייה" onClick={actions.clearSelection}>
-      <div role="row" className="row row--header" onClick={(e) => e.stopPropagation()}>
-        {COLUMNS.map(({ key, label, className }) => {
-          const active = state.sort.key === key
-          if (key === 'type') {
-            return (
-              <TypeHeader
-                key={key}
-                label={label}
-                className={className}
-                sortState={active ? (state.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
-                onSort={() => actions.sortBy(key)}
-                options={typeOptions}
-                selected={state.typeFilter}
-                onToggle={actions.toggleTypeFilter}
-                onClear={actions.clearTypeFilter}
+    <div className="file-view">
+      <SearchBox query={state.searchQuery} onChange={actions.search} />
+      <div className="file-view__scroll">
+        <div className="list" role="table" aria-label="תוכן התיקייה" onClick={actions.clearSelection}>
+          <div role="row" className="row row--header" onClick={(e) => e.stopPropagation()}>
+            {COLUMNS.map(({ key, label, className }) => {
+              const active = state.sort.key === key
+              if (key === 'type') {
+                return (
+                  <TypeHeader
+                    key={key}
+                    label={label}
+                    className={className}
+                    sortState={active ? (state.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onSort={() => actions.sortBy(key)}
+                    options={typeOptions}
+                    selected={state.typeFilter}
+                    onToggle={actions.toggleTypeFilter}
+                    onClear={actions.clearTypeFilter}
+                  />
+                )
+              }
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="columnheader"
+                  className={`${className} header-cell`}
+                  aria-sort={active ? (state.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  onClick={() => actions.sortBy(key)}
+                >
+                  <span>{label}</span>
+                  {active && (
+                    <SortArrowIcon
+                      size={10}
+                      className={state.sort.direction === 'desc' ? 'sort sort--desc' : 'sort'}
+                    />
+                  )}
+                </button>
+              )
+            })}
+            <div role="columnheader" className="col-large header-static">{LARGE_FILES_LABEL}</div>
+          </div>
+          {sorted.length === 0 ? (
+            <EmptyState
+              title={
+                searching ? NO_SEARCH_RESULTS : state.typeFilter.length ? 'אין פריטים התואמים לסינון' : 'התיקייה הזו ריקה'
+              }
+            />
+          ) : (
+            sorted.map((entry) => (
+              <Row
+                key={entry.id}
+                entry={entry}
+                selected={selected.has(entry.id)}
+                onSelect={(event) => {
+                  event.stopPropagation()
+                  actions.select(entry.id, event.ctrlKey || event.metaKey, event.shiftKey, orderedIds)
+                }}
+                onOpen={() => entry.folder && actions.openFolder(entry.folder)}
               />
-            )
-          }
-          return (
-            <button
-              key={key}
-              type="button"
-              role="columnheader"
-              className={`${className} header-cell`}
-              aria-sort={active ? (state.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
-              onClick={() => actions.sortBy(key)}
-            >
-              <span>{label}</span>
-              {active && (
-                <SortArrowIcon
-                  size={10}
-                  className={state.sort.direction === 'desc' ? 'sort sort--desc' : 'sort'}
-                />
-              )}
-            </button>
-          )
-        })}
-        <div role="columnheader" className="col-large header-static">{LARGE_FILES_LABEL}</div>
+            ))
+          )}
+        </div>
       </div>
-      {sorted.length === 0 ? (
-        <EmptyState title={state.typeFilter.length ? 'אין פריטים התואמים לסינון' : 'התיקייה הזו ריקה'} />
-      ) : (
-        sorted.map((entry) => (
-          <Row
-            key={entry.id}
-            entry={entry}
-            selected={selected.has(entry.id)}
-            onSelect={(event) => {
-              event.stopPropagation()
-              actions.select(entry.id, event.ctrlKey || event.metaKey, event.shiftKey, orderedIds)
-            }}
-            onOpen={() => entry.folder && actions.openFolder(entry.folder)}
-          />
-        ))
-      )}
     </div>
   )
 }

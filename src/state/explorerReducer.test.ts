@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { FolderRef, Location } from '../lib/models/entry'
+import type { FileSystemEntry, FolderRef, Location } from '../lib/models/entry'
 import { currentLocation, explorerReducer, initialState, type ExplorerAction, type ExplorerState } from './explorerReducer'
 
 const root: FolderRef = { id: 'root1', name: 'Projects', parent: null }
@@ -136,5 +136,46 @@ describe('picked folders', () => {
     expect(loaded.status).toBe('idle')
     const failed = explorerReducer(loaded, { type: 'loadFailed', message: 'שגיאה' })
     expect(failed).toMatchObject({ status: 'error', error: 'שגיאה' })
+  })
+})
+
+describe('search', () => {
+  const entry = (name: string): FileSystemEntry => ({ id: name, name, kind: 'file', extension: '' })
+  const loaded = run(
+    { type: 'navigate', location: at(root) },
+    { type: 'loaded', entries: [entry('Report.pdf'), entry('photo.jpg'), entry('notes.txt')] },
+  )
+  const click = (state: ExplorerState, id: string, ctrl = false) =>
+    explorerReducer(state, { type: 'click', id, ctrl, shift: false, orderedIds: state.entries.map((e) => e.id) })
+
+  it('stores the query as typed', () => {
+    expect(explorerReducer(loaded, { type: 'search', query: ' Rep ' }).searchQuery).toBe(' Rep ')
+  })
+
+  it('keeps the selection while the selected item still matches', () => {
+    const selected = click(loaded, 'Report.pdf')
+    const state = explorerReducer(selected, { type: 'search', query: 'REP' })
+    expect(state.selection).toBe(selected.selection)
+    expect(state.anchor).toBe('Report.pdf')
+  })
+
+  it('drops selected items that no longer match', () => {
+    const selected = click(click(loaded, 'Report.pdf'), 'photo.jpg', true)
+    let state = explorerReducer(selected, { type: 'search', query: 'rep' })
+    expect(state.selection).toEqual(['Report.pdf'])
+    expect(state.anchor).toBeNull()
+    state = explorerReducer(state, { type: 'search', query: 'xyz' })
+    expect(state.selection).toEqual([])
+  })
+
+  it('resets the query when navigating to another folder, back or refreshing', () => {
+    const searching = explorerReducer(loaded, { type: 'search', query: 'rep' })
+    expect(explorerReducer(searching, { type: 'navigate', location: at(child) }).searchQuery).toBe('')
+    const inChild = explorerReducer(
+      explorerReducer(searching, { type: 'navigate', location: at(child) }),
+      { type: 'search', query: 'x' },
+    )
+    expect(explorerReducer(inChild, { type: 'back' }).searchQuery).toBe('')
+    expect(explorerReducer(searching, { type: 'refresh' }).searchQuery).toBe('')
   })
 })

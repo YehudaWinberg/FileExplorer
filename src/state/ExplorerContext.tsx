@@ -32,6 +32,7 @@ export interface ExplorerActions {
   sortBy: (key: SortKey) => void
   toggleTypeFilter: (label: string) => void
   clearTypeFilter: () => void
+  search: (query: string) => void
   toggleNode: (folder: FolderRef) => void
   dismissNotice: () => void
 }
@@ -139,6 +140,7 @@ export function ExplorerProvider({
       sortBy: (key) => dispatch({ type: 'sort', key }),
       toggleTypeFilter: (label) => dispatch({ type: 'toggleTypeFilter', label }),
       clearTypeFilter: () => dispatch({ type: 'clearTypeFilter' }),
+      search: (query) => dispatch({ type: 'search', query }),
       toggleNode: (folder) => {
         const current = stateRef.current
         dispatch({ type: 'toggleExpand', id: folder.id })
