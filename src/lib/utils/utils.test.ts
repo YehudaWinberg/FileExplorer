@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FileSystemEntry } from '../models/entry'
 import { getExtension, getFileKind, getTypeLabel } from './fileTypes'
-import { formatElapsedDays, formatSize, formatTotalGb } from './format'
+import { formatDuration, formatElapsedDays, formatSize, formatTotalGb } from './format'
 import { summarizeEntries } from './summary'
 import { SCALE_GRADIENT, isLargeFile, scaleColor, SCALE_STEPS, sizeScalePosition, sizeScaleStep } from './largeFiles'
 import { sortEntries } from './sortEntries'
@@ -192,3 +192,18 @@ describe('summarizeEntries / formatTotalGb', () => {
   })
 })
 
+
+describe('formatDuration', () => {
+  it('formats seconds as minutes:seconds', () => {
+    expect(formatDuration(0)).toBe('0:00')
+    expect(formatDuration(5.9)).toBe('0:05')
+    expect(formatDuration(185)).toBe('3:05')
+    expect(formatDuration(3600)).toBe('60:00')
+  })
+
+  it('falls back to 0:00 for invalid values', () => {
+    expect(formatDuration(NaN)).toBe('0:00')
+    expect(formatDuration(Infinity)).toBe('0:00')
+    expect(formatDuration(-4)).toBe('0:00')
+  })
+})

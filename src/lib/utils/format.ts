@@ -56,3 +56,9 @@ export function formatSizeMb(bytes: number): string {
   if (bytes > 0 && mb < 0.01) return 'פחות מ-0.01 MB'
   return `${mbFormat.format(mb)} MB`
 }
+
+/** משך בפורמט דקות:שניות (למשל 3:05). דקות אינן מוגבלות ל-59; ערך לא תקין מוצג כ-0:00. */
+export function formatDuration(seconds: number): string {
+  const total = Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}

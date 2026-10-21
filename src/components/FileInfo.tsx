@@ -8,6 +8,7 @@ import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
 import { formatDate, formatSizeMb } from '../lib/utils/format'
 import { getOpenWithApp } from '../lib/utils/openWith'
 import { useExplorer } from '../state/ExplorerContext'
+import { MediaPreview, type MediaState } from './MediaPreview'
 import { PdfPreview } from './PdfPreview'
 import { PDF_LOADING, type PdfState } from './pdfState'
 
@@ -115,6 +116,34 @@ function usePdfPreview(entry: FileSystemEntry, enabled: boolean): PdfState {
   return state && state.entry === entry ? state.result : PDF_LOADING
 }
 
+/** טוען קובץ אודיו/וידאו כ-Blob URL לנגן המותאם. תוצאה של קובץ אחר לעולם אינה מוצגת. */
+function useMediaPreview(entry: FileSystemEntry, enabled: boolean): MediaState {
+  const { adapter } = useExplorer()
+  const [state, setState] = useState<{ entry: FileSystemEntry; result: MediaState } | null>(null)
+
+  useEffect(() => {
+    if (!enabled) return
+    let active = true
+    let url: string | null = null
+    adapter.getFile(entry).then(
+      (file) => {
+        if (!active) return
+        url = URL.createObjectURL(file)
+        setState({ entry, result: { status: 'ready', url } })
+      },
+      (error: unknown) => {
+        if (active) setState({ entry, result: { status: 'error', message: fileError(error) } })
+      },
+    )
+    return () => {
+      active = false
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [adapter, entry, enabled])
+
+  return state && state.entry === entry ? state.result : { status: 'loading' }
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <>
@@ -185,6 +214,9 @@ export function FileInfo({ entry }: { entry: FileSystemEntry }) {
   const isPdf = getFileKind(entry) === 'pdf' && !entry.unreadable
   const { size, exif, preview } = useImageExtras(entry, isImage)
   const pdfPreview = usePdfPreview(entry, isPdf)
+  const kind = getFileKind(entry)
+  const mediaKind = (kind === 'audio' || kind === 'video') && !entry.unreadable ? kind : null
+  const mediaPreview = useMediaPreview(entry, mediaKind !== null)
   const app = getOpenWithApp(entry.extension)
   const path = location.type === 'folder' ? relativePath(location.folder, entry.name) : undefined
   const dimensions = size.status === 'ready' ? size.value : null
@@ -208,6 +240,7 @@ export function FileInfo({ entry }: { entry: FileSystemEntry }) {
       {isImage && <ExifSection exif={exif} />}
       {isImage && <PreviewSection key={entry.id} name={entry.name} preview={preview} />}
       {isPdf && <PdfPreview key={entry.id} name={entry.name} state={pdfPreview} />}
+      {mediaKind && <MediaPreview key={entry.id} name={entry.name} kind={mediaKind} state={mediaPreview} />}
     </div>
   )
 }
