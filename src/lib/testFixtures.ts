@@ -1,4 +1,4 @@
-/** בוני בתים סינתטיים של תמונות לבדיקות (ללא קבצים אמיתיים). */
+/** בוני בתים סינתטיים של תמונות ו-PDF לבדיקות (ללא קבצים אמיתיים). */
 
 const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0))
 const u16 = (n: number) => [n & 255, n >> 8]
@@ -39,4 +39,16 @@ export function png(extra: number[] = []): Uint8Array {
     ...extra,
     ...pngChunk('IEND', []),
   ])
+}
+
+/** PDF מינימלי עם מספר העמודים המבוקש (אובייקטי /Type /Page גלויים בטקסט). */
+export function pdf(pages = 1, padding = 0): Uint8Array {
+  const kids = Array.from({ length: pages }, (_, i) => `${i + 3} 0 R`).join(' ')
+  const leaves = Array.from({ length: pages }, (_, i) => `${i + 3} 0 obj\n<< /Type /Page /Parent 2 0 R >>\nendobj\n`).join('')
+  const filler = padding > 0 ? `% ${'x'.repeat(padding)}\n` : ''
+  const text =
+    `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n` +
+    `2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${pages} >>\nendobj\n${leaves}${filler}` +
+    `trailer\n<< /Root 1 0 R >>\nstartxref\n0\n%%EOF\n`
+  return new Uint8Array(ascii(text))
 }

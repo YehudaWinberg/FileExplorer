@@ -798,6 +798,71 @@ button.crumb:hover {
   object-fit: contain;
 }
 
+.details__preview--pdf {
+  height: var(--details-pdf-height);
+}
+
+.pdf-preview__name {
+  margin: 0 0 var(--space-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.pdf-preview__pages {
+  margin: 0 0 var(--space-sm);
+  color: var(--text-secondary);
+}
+
+.pdf-preview__frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.circular-progress {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+}
+
+.circular-progress__svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.circular-progress__svg--spin {
+  animation: circular-progress-spin 1s linear infinite;
+}
+
+.circular-progress__track,
+.circular-progress__bar {
+  fill: none;
+  stroke-width: 4;
+}
+
+.circular-progress__track {
+  stroke: var(--border);
+}
+
+.circular-progress__bar {
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+
+.circular-progress__label {
+  position: absolute;
+  font-size: var(--font-size-small);
+}
+
+@keyframes circular-progress-spin {
+  to {
+    transform: rotate(270deg);
+  }
+}
+
 .details__note {
   margin: 0 0 var(--space-md);
   color: var(--text-secondary);

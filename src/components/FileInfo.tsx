@@ -3,10 +3,13 @@ import { extractImageDetails, type ExifTag } from '../lib/exifTags'
 import { FsError } from '../lib/fileSystem'
 import type { ImageSize } from '../lib/metadata'
 import { relativePath, type FileSystemEntry } from '../lib/models/entry'
+import { loadPdf } from '../lib/pdf'
 import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
 import { formatDate, formatSizeMb } from '../lib/utils/format'
 import { getOpenWithApp } from '../lib/utils/openWith'
 import { useExplorer } from '../state/ExplorerContext'
+import { PdfPreview } from './PdfPreview'
+import { PDF_LOADING, type PdfState } from './pdfState'
 
 type Async<T> =
   | { status: 'loading' }
@@ -79,6 +82,39 @@ function useImageExtras(entry: FileSystemEntry, enabled: boolean) {
   return { size, exif, preview }
 }
 
+/** טוען PDF ברקע (עם התקדמות, ביטול ו-timeout) ומחזיר כתובת Blob לתצוגה. תוצאה ישנה לעולם אינה מוצגת. */
+function usePdfPreview(entry: FileSystemEntry, enabled: boolean): PdfState {
+  const { adapter } = useExplorer()
+  const [state, setState] = useState<{ entry: FileSystemEntry; result: PdfState } | null>(null)
+
+  useEffect(() => {
+    if (!enabled) return
+    const controller = new AbortController()
+    let url: string | null = null
+    const set = (result: PdfState) => {
+      if (!controller.signal.aborted) setState({ entry, result })
+    }
+
+    loadPdf(() => adapter.getFile(entry), {
+      signal: controller.signal,
+      onProgress: (progress) => set({ status: 'loading', progress }),
+    }).then(
+      ({ blob, pages }) => {
+        if (controller.signal.aborted) return
+        url = URL.createObjectURL(blob)
+        set({ status: 'ready', url, pages })
+      },
+      () => set({ status: 'error' }),
+    )
+    return () => {
+      controller.abort()
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [adapter, entry, enabled])
+
+  return state && state.entry === entry ? state.result : PDF_LOADING
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <>
@@ -146,7 +182,9 @@ function PreviewSection({ name, preview }: { name: string; preview: Async<string
 export function FileInfo({ entry }: { entry: FileSystemEntry }) {
   const { location } = useExplorer()
   const isImage = getFileKind(entry) === 'image' && !entry.unreadable
+  const isPdf = getFileKind(entry) === 'pdf' && !entry.unreadable
   const { size, exif, preview } = useImageExtras(entry, isImage)
+  const pdfPreview = usePdfPreview(entry, isPdf)
   const app = getOpenWithApp(entry.extension)
   const path = location.type === 'folder' ? relativePath(location.folder, entry.name) : undefined
   const dimensions = size.status === 'ready' ? size.value : null
@@ -169,6 +207,7 @@ export function FileInfo({ entry }: { entry: FileSystemEntry }) {
 
       {isImage && <ExifSection exif={exif} />}
       {isImage && <PreviewSection key={entry.id} name={entry.name} preview={preview} />}
+      {isPdf && <PdfPreview key={entry.id} name={entry.name} state={pdfPreview} />}
     </div>
   )
 }
