@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FileSystemAdapter } from '../lib/fileSystem'
 import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
-import { jpegWithExif, png } from '../lib/testFixtures'
+import { jpegWithExif, pdf, png } from '../lib/testFixtures'
 import { ExplorerProvider, useExplorer } from '../state/ExplorerContext'
 import { DetailsPane } from './DetailsPane'
 import { FileList } from './FileList'
@@ -39,6 +39,7 @@ const contents: Record<string, Uint8Array> = {
   'Other.jpg': jpegWithExif('Nikon'),
   'Logo.png': png(),
   'Broken.jpg': new Uint8Array([1, 2, 3]),
+  'Report.pdf': pdf(2),
 }
 
 /** קריאות getFile ממתינות עד שהבדיקה משחררת אותן, כדי לשלוט בסדר הסיום. */
@@ -119,7 +120,7 @@ describe('FileInfo in the details pane', () => {
     expect(info.getByText('Documents/Report.pdf')).toBeTruthy()
     expect(info.getByText('5 MB')).toBeTruthy()
     expect(info.getByText('תאריך שינוי')).toBeTruthy()
-    expect(info.queryByText('תצוגה מקדימה')).toBeNull()
+    expect(await info.findByText('מספר עמודים: 2')).toBeTruthy()
     expect(info.queryByText('נתוני EXIF')).toBeNull()
   })
 
