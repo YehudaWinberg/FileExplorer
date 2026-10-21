@@ -898,3 +898,36 @@ button.crumb:hover {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+.details__preview--video {
+  height: auto;
+  max-height: var(--details-pdf-height);
+}
+
+.details__preview--video video {
+  max-width: 100%;
+  max-height: var(--details-pdf-height);
+}
+
+.media-preview__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.media-preview__button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--text);
+  background: var(--bg-mica);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.media-preview__duration {
+  color: var(--text-secondary);
+}
