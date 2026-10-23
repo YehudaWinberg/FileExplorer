@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מסך מפתח - תוצאות חיפוש</title>
+<style>
+/* מסך מפתח: תוצאות חיפוש (שאילתה "כהן*.pdf" מתוך "חלי"). מצב בהיר בלבד, בלי רשת.
+   חלקי spine רלוונטיים (לבדיקה בעתיד):
+   - DESIGN.md: טוקנים וצבעים, טיפוגרפיה (Segoe UI Variable 14px), רדיוסים, גובה שורה, מצבי שדה (פוקוס/מושהה)
+   - EXPERIENCE.md: Component Patterns (שורה עליונה B, שורת תוצאה עם טבעת קרבה, נתיב מקוצר, חלונית פרטים/תצוגה מקדימה, כפתור מיון)
+   - EXPERIENCE.md: State Patterns (סריקה, השהיה, הסתיים, ריק) ו-Flow: UJ-1/UJ-2 (חיפוש, בחירה, תצוגה מקדימה)
+   - PRD: FR-9, FR-13..FR-16, FR-18, FR-23. נוסחת קרבה (הנחה): התאמת שם בסיסית פחות 5 נקודות לכל רמת עומק מתחת לתיקיית החיפוש.
+
+   Tokens (מועתקים מ-directions-toolbar-1.html, וריאציה B):
+   --bg-mica   #f3f3f3  רקע Mica של החלון
+   --bg-layer  #ffffff  שדות, שכבות, אזור תוצאות
+   --accent    #0067c0  כחול Windows 11 (פס סריקה, טבעת, בחירה)
+   --border    #e0e0e0  מסגרת עדינה
+   --border-strong #8d8d8d  מסגרת תחתונה של שדה
+   --text      #1b1b1b  טקסט ראשי
+   --text-2    #5d5d5d  טקסט משני (ניגודיות מעל 4.5:1 על לבן)
+   --hover     #e9e9e9  ריחוף על כפתור אייקון
+   --row-hover #f5f5f5  ריחוף על שורת תוצאה
+   --sel-bg    #e6f0fa  רקע שורה נבחרת (תוספת: ~10% accent)
+   --ring-track #e0e0e0 מסלול הטבעת
+   --warn      #c27a00  כתום פס מושהה
+   --warn-bg   #fff8ec  רקע שדה מושהה
+   --warn-text #7a4b00  טקסט מושהה
+   #fcfcfc  רקע חלונית פרטים; #d0d0d0 קו הפרדה אנכי; #e8e8e8 רקע דף ההדגמה
+   רדיוס: 4px לשדות וכפתורים, 8px לחלון. גובה שורת כלים 40px, שדה 32px, שורת תוצאה 52px. */
+:root{--bg-mica:#f3f3f3;--bg-layer:#fff;--accent:#0067c0;--border:#e0e0e0;--border-strong:#8d8d8d;--text:#1b1b1b;--text-2:#5d5d5d;--hover:#e9e9e9;--row-hover:#f5f5f5;--sel-bg:#e6f0fa;--ring-track:#e0e0e0;--warn:#c27a00;--warn-bg:#fff8ec;--warn-text:#7a4b00;--radius:4px}
+*{box-sizing:border-box}
+body{margin:0;background:#e8e8e8;color:var(--text);font:14px/1.4 "Segoe UI Variable","Segoe UI",system-ui,sans-serif;padding:24px 16px 48px}
+main{max-width:1180px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}
+.lead{color:var(--text-2);margin:0 0 20px}
+h2{font-size:17px;margin:28px 0 4px;display:flex;align-items:center;gap:8px}
+.tag{background:var(--accent);color:#fff;border-radius:4px;padding:0 8px;font-size:14px}
+.cap{color:var(--text-2);margin:0 0 10px;max-width:90ch}
+svg{width:16px;height:16px;flex:none}
+button{font:inherit;color:inherit}
+
+/* מסגרת דפדפן */
+.browser{background:var(--bg-mica);border:1px solid #cfcfcf;border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.tabs{height:38px;background:#dcdcdc;display:flex;align-items:flex-end;padding:0 8px;gap:4px}
+.tab{background:var(--bg-mica);height:30px;border-radius:8px 8px 0 0;padding:0 14px;display:flex;align-items:center;gap:8px;font-size:13px;min-width:200px}
+.wc{margin-inline-start:auto;align-self:stretch;display:flex;direction:ltr}
+.wc i{width:46px;display:grid;place-items:center;font-style:normal;color:var(--text-2)}
+.urlbar{height:36px;background:var(--bg-mica);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px}
+.url{height:26px;background:var(--bg-layer);border-radius:13px;flex:1;max-width:520px;display:flex;align-items:center;padding:0 14px;color:var(--text-2);font-size:12px;direction:ltr}
+
+/* שורה עליונה B */
+.tb{display:flex;align-items:center;gap:4px;height:44px;padding:0 10px;background:var(--bg-mica)}
+.ib{width:32px;height:32px;border:0;background:transparent;border-radius:var(--radius);display:grid;place-items:center;cursor:pointer;flex:none}
+.ib:hover{background:var(--hover)}
+.sep{width:1px;height:20px;background:var(--border);margin:0 4px;flex:none}
+.addr{flex:1;min-width:0;height:32px;background:var(--bg-layer);border:1px solid var(--border);border-bottom-color:var(--border-strong);border-radius:var(--radius);padding:0 10px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden}
+.addr .chev{color:var(--text-2);font-size:12px}
+.search{position:relative;width:280px;flex:none;height:32px;background:var(--bg-layer);border:1px solid var(--border);border-bottom-color:var(--border-strong);border-radius:var(--radius);display:flex;align-items:center;gap:8px;padding:0 6px 0 10px;overflow:hidden;transition:width .18s ease}
+.search:focus-within{width:50%;border-bottom:2px solid var(--accent)}
+.search .si{color:var(--text-2);display:flex}
+.search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font:inherit;color:var(--text);height:30px}
+.qctl{display:flex;gap:2px;flex:none}
+.qb{width:24px;height:24px;border:0;background:transparent;border-radius:var(--radius);display:grid;place-items:center;cursor:pointer;color:var(--text)}
+.qb:hover{background:var(--hover)}
+.qb svg{width:12px;height:12px}
+.qb.go{color:var(--accent)}
+.bar{position:absolute;bottom:0;inset-inline-start:0;height:3px;width:calc(var(--p) * 1%);background:var(--accent)} /* סריקה: כחול #0067c0 */
+.paused .search{background:var(--warn-bg)}
+.paused .bar{background:var(--warn)} /* השהיה: כתום #c27a00, קפוא */
+
+/* גוף */
+.body{display:grid;grid-template-columns:200px 1fr 300px;height:500px;border-top:1px solid var(--border)}
+.side{background:var(--bg-mica);padding:8px 6px;overflow:hidden;border-inline-end:1px solid var(--border);font-size:13px}
+.side h3{font-size:12px;color:var(--text-2);font-weight:600;margin:6px 8px}
+.node{height:30px;display:flex;align-items:center;gap:6px;padding-inline-start:8px;border-radius:var(--radius);white-space:nowrap}
+.node.sel{background:var(--hover);position:relative}
+.node.sel::before{content:"";position:absolute;inset-inline-start:0;top:7px;bottom:7px;width:3px;border-radius:2px;background:var(--accent)}
+.node .tw{width:12px;color:var(--text-2);font-size:10px;text-align:center}
+.node svg{color:#8a6d00}
+.l1{padding-inline-start:26px}.l2{padding-inline-start:44px}.l3{padding-inline-start:62px}
+
+.res{background:var(--bg-layer);display:flex;flex-direction:column;min-width:0}
+.rbar{height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--border)}
+.status{flex:1;color:var(--text-2);font-variant-numeric:tabular-nums}
+.status b{color:var(--text);font-weight:600}
+.paused .status{color:var(--warn-text)}
+.sort{height:32px;padding:0 12px;border:1px solid var(--border);border-bottom-color:var(--border-strong);background:var(--bg-layer);border-radius:var(--radius);display:flex;align-items:center;gap:6px;cursor:pointer}
+.sort:hover:not(:disabled){background:var(--hover)}
+.sort:disabled{color:#a0a0a0;border-color:var(--border);cursor:not-allowed} /* מושבת: טקסט #a0a0a0 */
+.sort.on{border-bottom:2px solid var(--accent)}
+.hdr,.row{display:grid;grid-template-columns:minmax(0,1fr) 36% 90px;align-items:center;column-gap:12px;padding:0 14px}
+.hdr{height:32px;font-size:12px;color:var(--text-2);border-bottom:1px solid var(--border)}
+.list{overflow:hidden;flex:1}
+.row{height:52px;cursor:default;position:relative;border-bottom:1px solid #f0f0f0}
+.row:hover{background:var(--row-hover)}
+.row.sel{background:var(--sel-bg)}
+.row.sel::before{content:"";position:absolute;inset-inline-start:0;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--accent)}
+.c1{display:flex;align-items:center;gap:10px;min-width:0}
+.ring{position:relative;width:38px;height:38px;flex:none}
+.ring svg.r{width:38px;height:38px;transform:rotate(-90deg)}
+.ring .ic{position:absolute;inset:0;display:grid;place-items:center;color:#b3261e} /* אייקון PDF אדום #b3261e */
+.ring .ic svg{width:16px;height:16px}
+.pct{position:absolute;bottom:-3px;inset-inline-start:50%;transform:translateX(50%);background:var(--bg-layer);border:1px solid var(--border);border-radius:8px;font-size:10px;line-height:12px;padding:0 3px;color:var(--text);font-variant-numeric:tabular-nums}
+[dir=rtl] .pct{transform:translateX(50%)}
+.row.sel .pct{background:var(--sel-bg)}
+.nm{min-width:0}
+.nm .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm .d{font-size:12px;color:var(--text-2)}
+.c2{color:var(--text-2);white-space:nowrap;overflow:hidden;font-size:13px}
+.c2 bdi{display:inline}
+.c3{color:var(--text-2);font-variant-numeric:tabular-nums;text-align:end}
+.new{animation:in .4s ease}
+@keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.empty{flex:1;display:grid;place-content:center;text-align:center;color:var(--text-2);gap:6px}
+.empty svg{width:40px;height:40px;margin:0 auto;color:#a0a0a0}
+.empty b{color:var(--text);font-size:16px;font-weight:600}
+
+/* חלונית פרטים */
+.det{background:#fcfcfc;border-inline-end:1px solid var(--border);padding:16px;overflow:hidden;display:flex;flex-direction:column;gap:12px}
+.det .hint{margin:auto;text-align:center;color:var(--text-2)}
+.sheet{background:var(--bg-layer);border:1px solid var(--border);border-radius:var(--radius);height:190px;padding:14px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.sheet .badge{position:absolute;top:10px;inset-inline-end:10px;background:#b3261e;color:#fff;font-size:11px;font-weight:600;padding:0 6px;border-radius:3px}
+.sheet i{display:block;height:6px;background:#e6e6e6;border-radius:3px;margin:10px 0}
+.sheet i.t{height:9px;width:55%;background:#c9c9c9;margin-top:22px}
+.det h4{margin:0;font-size:15px;font-weight:600;word-break:break-all}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;margin:0}
+.kv dt{color:var(--text-2)}
+.kv dd{margin:0;word-break:break-all}
+.kv dd.p{direction:rtl;unicode-bidi:plaintext}
+.det .note{font-size:12px;color:var(--text-2);margin-top:auto}
+
+.demo{margin:8px 0 0;display:flex;gap:10px;align-items:center}
+.demo button{height:30px;padding:0 14px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--bg-layer);cursor:pointer}
+.small .body{height:300px}
+.small .browser{max-width:760px}
+</style>
+</head>
+<body>
+<main>
+<h1>תוצאות חיפוש: "כהן*.pdf" מתוך "חלי"</h1>
+<p class="lead">מסך מפתח בסייר הקבצים בסגנון Windows 11, מצב בהיר בלבד. שורה עליונה לפי וריאציה B, שלוש עמודות תוצאה, וחלונית פרטים משמאל. לחצו על שורה כדי לבחור ולהציג תצוגה מקדימה. אחוז הקרבה נקבע לפי הנחת נוסחה: התאמת שם בסיסית פחות 5 נקודות לכל רמת עומק.</p>
+
+<h2><span class="tag">א</span>באמצע סריקה</h2>
+<p class="cap">פס כחול בתחתית השדה, בתוך השדה מופיעים עצירה (ריבוע שחור) והשהיה (שני פסים). התוצאות מגיעות בהדרגה והמיון מושבת עד שהסריקה נעצרת או מסתיימת.</p>
+<div id="f-scan"></div>
+<div class="demo"><button id="replay">הדגמה חוזרת של הגעת התוצאות</button><span class="cap" style="margin:0">רק להדגמה: שורה חדשה כל שנייה</span></div>
+
+<h2><span class="tag">ב</span>מושהה</h2>
+<p class="cap">הפס והשדה בכתום, ההשהיה הופכת לחץ "המשך" (משולש) וליד העצירה. הסריקה נשמרת מאותה נקודה. הנחה: במצב מושהה המיון זמין, כי הרשימה יציבה.</p>
+<div id="f-pause"></div>
+
+<h2><span class="tag">ג</span>הסריקה הסתיימה, תוצאה נבחרת</h2>
+<p class="cap">אין פס ואין כפתורי עצירה. לחיצה אחת בחרה את "כהן_חשבונית_אוקטובר.pdf" והחלונית מציגה תצוגה מקדימה. כפתור המיון פעיל; לחצו עליו לראות מיון לפי קרבה.</p>
+<div id="f-done"></div>
+
+<h2><span class="tag">ד</span>מצב ריק</h2>
+<p class="cap">הסריקה הסתיימה בלי התאמות.</p>
+<div id="f-empty" class="small"></div>
+</main>
+
+<script>
+/* הדגמה בלבד. הנתונים בדויים אך מציאותיים. אחוז = בסיס שם פחות 5 לכל רמת עומק (עומק = מספר התיקיות מתחת ל"חלי"). */
+var DATA = [
+  {n:'כהן.pdf', p:['חלי'], b:100, s:'84 KB', d:'12.09.2026'},
+  {n:'כהן_הסכם.pdf', p:['חלי','משפחה'], b:90, s:'212 KB', d:'03.06.2026'},
+  {n:'כהן_תלוש_09.pdf', p:['חלי','עבודה','שכר','2026'], b:90, s:'96 KB', d:'30.09.2026'},
+  {n:'כהן_חשבונית_אוקטובר.pdf', p:['חלי','מסמכים','חשבוניות'], b:95, s:'148 KB', d:'18.10.2026'},
+  {n:'כהן_דוח_שנתי.pdf', p:['חלי','ארכיון','2024','מס'], b:85, s:'1.2 MB', d:'27.03.2025'},
+  {n:'כהן_דוד_חוזה_שכירות.pdf', p:['חלי','מסמכים','משפט','חוזים'], b:82, s:'2.4 MB', d:'14.01.2026'},
+  {n:'כהן_ועד_בית.pdf', p:['חלי','בית','ועד','פרוטוקולים','2026'], b:92, s:'61 KB', d:'05.08.2026'},
+  {n:'כהן-לוי_ביטוח.pdf', p:['חלי','מסמכים','ביטוח','רכב','2025','פוליסות'], b:92, s:'530 KB', d:'22.11.2025'},
+  {n:'כהן_קבלה.pdf', p:['חלי','ארכיון','2023','תרומות','קבלות','סרוקים','ישן'], b:90, s:'3.8 MB', d:'09.02.2023'}
+];
+DATA.forEach(function (r) { r.pct = r.b - 5 * (r.p.length - 1); });
+
+var SVG = {
+  file:'<svg viewBox="0 0 16 16"><path d="M4 1.5h5.5L13 5v9.5H4z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9.5 1.5V5H13" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
+  back:'<svg viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+  fwd:'<svg viewBox="0 0 16 16"><path d="M13 8H3M7 4L3 8l4 4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+  up:'<svg viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+  ref:'<svg viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2v3h-3" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+  folder:'<svg viewBox="0 0 16 16"><path d="M2 4.5h4l1.2 1.5H14v6.5H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
+  search:'<svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10 10l4 4" stroke="currentColor" stroke-width="1.3"/></svg>',
+  stop:'<svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" fill="#1b1b1b"/></svg>',
+  pause:'<svg viewBox="0 0 12 12"><path d="M3.5 2v8M8.5 2v8" stroke="#1b1b1b" stroke-width="1.8"/></svg>',
+  play:'<svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="#0067c0"/></svg>',
+  sort:'<svg viewBox="0 0 16 16"><path d="M5 3v10M2.5 10.5L5 13l2.5-2.5M11 13V3M8.5 5.5L11 3l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>'
+};
+
+/* קיצור נתיב: מציגים לפחות את שתי התיקיות האחרונות; השורש נשאר, והאמצע הופך ל"…" כשהנתיב ארוך מארבעה חלקים */
+function shortPath(p) {
+  if (p.length <= 4) return {t: p.join(' › '), cut: false};
+  return {t: p[0] + ' › … › ' + p.slice(-2).join(' › '), cut: true};
+}
+function rowHtml(r, sel, isNew) {
+  var C = 2 * Math.PI * 17, dash = (r.pct / 100 * C).toFixed(1), sp = shortPath(r.p);
+  return '<div class="row' + (sel ? ' sel' : '') + (isNew ? ' new' : '') + '" data-n="' + r.n + '" tabindex="0" title="' + r.p.join(' › ') + ' › ' + r.n + '">' +
+    '<div class="c1"><div class="ring" title="התאמה: ' + r.pct + '%">' +
+    '<svg class="r" viewBox="0 0 38 38"><circle cx="19" cy="19" r="17" fill="none" stroke="#e0e0e0" stroke-width="2.5"/>' +
+    '<circle cx="19" cy="19" r="17" fill="none" stroke="#0067c0" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + C.toFixed(1) + '"/></svg>' +
+    '<span class="ic">' + SVG.file + '</span><span class="pct">' + r.pct + '%</span></div>' +
+    '<div class="nm"><div class="n">' + r.n + '</div><div class="d">שונה ב-' + r.d + '</div></div></div>' +
+    '<div class="c2"><bdi>' + sp.t + '</bdi></div><div class="c3">' + r.s + '</div></div>';
+}
+function detHtml(r) {
+  if (!r) return '<div class="hint">בחרו תוצאה כדי לראות תצוגה מקדימה</div>';
+  return '<div class="sheet"><span class="badge">PDF</span><i class="t"></i><i></i><i></i><i style="width:80%"></i><i></i><i style="width:60%"></i><i></i></div>' +
+    '<h4>' + r.n + '</h4><dl class="kv"><dt>נתיב</dt><dd class="p">' + r.p.join(' › ') + ' › ' + r.n + '</dd><dt>גודל</dt><dd>' + r.s + '</dd><dt>שונה</dt><dd>' + r.d + '</dd><dt>התאמה</dt><dd>' + r.pct + '%</dd></dl>' +
+    '<div class="note">לחיצה כפולה: מעבר למיקום הקובץ</div>';
+}
+function frame(el, o) {
+  /* o: mode scan|pause|done|empty, items, p, query, selName */
+  var st = {mode:o.mode, items:o.items.slice(), sel:o.selName || null, sorted:false, p:o.p || 0};
+  function render() {
+    var scanning = st.mode === 'scan', paused = st.mode === 'pause', active = scanning || paused;
+    var selR = st.items.filter(function (r) { return r.n === st.sel; })[0];
+    var ctrls = scanning ? '<span class="qctl"><button class="qb" title="השהיה">' + SVG.pause + '</button><button class="qb" title="עצירה">' + SVG.stop + '</button></span>' :
+                paused ? '<span class="qctl"><button class="qb go" title="המשך">' + SVG.play + '</button><button class="qb" title="עצירה">' + SVG.stop + '</button></span>' : '';
+    var status = scanning ? 'סורק… נמצאו <b>' + st.items.length + '</b>' :
+                 paused ? 'מושהה — נמצאו <b>' + st.items.length + '</b>' :
+                 st.items.length ? 'הסריקה הסתיימה — נמצאו <b>' + st.items.length + '</b>' : 'הסריקה הסתיימה';
+    var list = st.items.length ? st.items.map(function (r, i) { return rowHtml(r, r.n === st.sel, o.fresh === i); }).join('') :
+      '<div class="empty">' + SVG.search + '<b>לא נמצאו תוצאות</b><span>אין קובץ שמתאים ל-"' + o.query + '" בתיקיית חלי ובתיקיות שבתוכה.<br>נסו שם קצר יותר, למשל כהן*</span></div>';
+    el.innerHTML = '<div class="browser' + (paused ? ' paused' : '') + '">' +
+      '<div class="tabs"><div class="tab">' + SVG.folder + 'סייר הקבצים</div><div class="wc"><i>&#8211;</i><i>&#9633;</i><i>&#10005;</i></div></div>' +
+      '<div class="urlbar"><div class="url">localhost:5173</div></div>' +
+      '<div class="tb"><button class="ib" title="אחורה">' + SVG.back + '</button><button class="ib" title="קדימה">' + SVG.fwd + '</button><button class="ib" title="למעלה">' + SVG.up + '</button><button class="ib" title="רענון">' + SVG.ref + '</button><button class="ib" title="בחירת תיקייה" aria-label="בחירת תיקייה">' + SVG.folder + '</button><span class="sep"></span>' +
+      '<div class="addr"><span>חלי</span></div>' +
+      '<div class="search" style="--p:' + st.p + '"><span class="si">' + SVG.search + '</span><input value="' + o.query + '" aria-label="חיפוש" readonly>' + ctrls + (active ? '<i class="bar"></i>' : '') + '</div></div>' +
+      '<div class="body"><aside class="side"><h3>עץ תיקיות</h3>' +
+      '<div class="node sel"><span class="tw">&#9662;</span>' + SVG.folder + 'חלי</div>' +
+      '<div class="node l1"><span class="tw">&#9656;</span>' + SVG.folder + 'משפחה</div><div class="node l1"><span class="tw">&#9662;</span>' + SVG.folder + 'מסמכים</div>' +
+      '<div class="node l2"><span class="tw"></span>' + SVG.folder + 'חשבוניות</div><div class="node l2"><span class="tw">&#9656;</span>' + SVG.folder + 'משפט</div><div class="node l2"><span class="tw">&#9656;</span>' + SVG.folder + 'ביטוח</div>' +
+      '<div class="node l1"><span class="tw">&#9656;</span>' + SVG.folder + 'עבודה</div><div class="node l1"><span class="tw">&#9656;</span>' + SVG.folder + 'ארכיון</div><div class="node l1"><span class="tw">&#9656;</span>' + SVG.folder + 'בית</div></aside>' +
+      '<section class="res"><div class="rbar"><span class="status">' + status + '</span><button class="sort' + (st.sorted ? ' on' : '') + '"' + (scanning ? ' disabled title="המיון יהיה זמין בסיום הסריקה"' : '') + '>' + SVG.sort + 'מיון לפי קרבה</button></div>' +
+      (st.items.length ? '<div class="hdr"><span>שם</span><span>נתיב</span><span style="text-align:end">גודל</span></div>' : '') +
+      '<div class="list">' + list + '</div></section>' +
+      '<aside class="det">' + detHtml(selR) + '</aside></div></div>';
+    el.querySelectorAll('.row').forEach(function (row) {
+      row.onclick = function () { st.sel = row.getAttribute('data-n'); o.fresh = -1; render(); };
+    });
+    var sb = el.querySelector('.sort');
+    sb.onclick = function () {
+      if (sb.disabled) return;
+      st.items.sort(function (a, b) { return b.pct - a.pct || a.n.localeCompare(b.n, 'he'); });
+      st.sorted = true; o.fresh = -1; render();
+    };
+  }
+  render();
+  return {st:st, render:render};
+}
+
+var scanItems = DATA.slice(0, 6);
+var fScan = frame(document.getElementById('f-scan'), {mode:'scan', items:scanItems, p:55, query:'כהן*.pdf'});
+frame(document.getElementById('f-pause'), {mode:'pause', items:DATA.slice(0, 8), p:80, query:'כהן*.pdf'});
+frame(document.getElementById('f-done'), {mode:'done', items:DATA, query:'כהן*.pdf', selName:'כהן_חשבונית_אוקטובר.pdf'});
+frame(document.getElementById('f-empty'), {mode:'empty', items:[], query:'כהן*.xlsx'});
+
+/* הדגמה: הגעה הדרגתית של תוצאות במצב א */
+document.getElementById('replay').onclick = function () {
+  var i = 0, host = document.getElementById('f-scan');
+  var t = setInterval(function () {
+    i++;
+    var h = frame(host, {mode:'scan', items:DATA.slice(0, i), p:Math.min(95, 10 + i * 9), query:'כהן*.pdf', fresh:i - 1});
+    if (i >= 6) clearInterval(t);
+  }, 1000);
+};
+</script>
+</body>
+</html>
