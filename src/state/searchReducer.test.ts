@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
 import type { SearchResult } from '../lib/scanTree'
-import { RESULT_CAP, searchReducer, type SearchAction, type SearchState } from './searchReducer'
+import { RESULT_CAP, orderResults, searchReducer, type SearchAction, type SearchState } from './searchReducer'
 
 const root: FolderRef = { id: 'root', name: 'Root', parent: null }
 const result = (name: string, depth = 1): SearchResult => {
@@ -127,5 +127,35 @@ describe('result cap (2.3)', () => {
       expect(searchReducer(capped, { type, runId: 1 })).toBe(capped)
     }
     expect(searchReducer(capped, start(2))).toMatchObject({ status: 'scanning', count: 0, results: [] })
+  })
+})
+
+describe('sort by score (3.3)', () => {
+  const scored = (name: string, score: number, depth: number): SearchAction =>
+    ({ type: 'result', runId: 1, result: { ...result(name, depth), score } }) as SearchAction
+
+  it('only sets sortedByScore outside scanning and when there are results', () => {
+    const scanning = run(start(1), scored('a', 50, 1))
+    expect(searchReducer(scanning, { type: 'sortByScore', runId: 1 })).toBe(scanning)
+    const empty = run(start(1), { type: 'finished', runId: 1 })
+    expect(searchReducer(empty, { type: 'sortByScore', runId: 1 })).toBe(empty)
+    for (const end of [{ type: 'finished' }, { type: 'stop' }, { type: 'cap' }, { type: 'pause' }] as const) {
+      const state = run(start(1), scored('a', 50, 1), { ...end, runId: 1 }, { type: 'sortByScore', runId: 1 })
+      expect(state?.sortedByScore).toBe(true)
+    }
+  })
+
+  it('resume resets the flag back to arrival order', () => {
+    const sorted = run(start(1), scored('a', 50, 1), { type: 'pause', runId: 1 }, { type: 'sortByScore', runId: 1 })
+    expect(sorted?.sortedByScore).toBe(true)
+    expect(searchReducer(sorted, { type: 'resume', runId: 1 })).toMatchObject({ status: 'scanning', sortedByScore: false })
+  })
+
+  it('orders by score descending, ties by shallower depth, otherwise stable; unsorted keeps arrival order', () => {
+    const mk = (name: string, score: number, depth: number) => ({ ...result(name, depth), score })
+    const arrival = [mk('d', 50, 3), mk('a', 90, 2), mk('b', 90, 1), mk('c', 90, 1), mk('e', 70, 1)]
+    expect(orderResults(arrival, true).map((r) => r.entry.name)).toEqual(['b', 'c', 'a', 'e', 'd'])
+    expect(orderResults(arrival, false)).toBe(arrival)
+    expect(arrival.map((r) => r.entry.name)).toEqual(['d', 'a', 'b', 'c', 'e'])
   })
 })

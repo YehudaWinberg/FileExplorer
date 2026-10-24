@@ -30,6 +30,8 @@ export interface SearchActions {
   resume: () => void
   /** עוצר סופית (גם מהשהיה); התוצאות שנמצאו נשמרות. */
   stop: () => void
+  /** ממיין לפי קרבה (תצוגה נגזרת); לא זמין בזמן `scanning`. */
+  sortByScore: () => void
 }
 
 export const SEARCH_DEBOUNCE_MS = 300
@@ -167,6 +169,10 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     openResumeGate()
   }, [openResumeGate])
 
+  const sortByScore = useCallback(() => {
+    if (sessionRef.current) dispatch({ type: 'sortByScore', runId: sessionRef.current.runId })
+  }, [])
+
   const stop = useCallback(() => {
     cancelScheduled()
     abortRun()
@@ -260,8 +266,8 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 
   const details = session && loaded.runId === session.runId ? loaded.byId : NO_DETAILS
   const value = useMemo(
-    () => ({ session, details, actions: { start, schedule, cancelScheduled, isScheduled, pause, resume, stop }, requestDetails }),
-    [session, details, start, schedule, cancelScheduled, isScheduled, pause, resume, stop, requestDetails],
+    () => ({ session, details, actions: { start, schedule, cancelScheduled, isScheduled, pause, resume, stop, sortByScore }, requestDetails }),
+    [session, details, start, schedule, cancelScheduled, isScheduled, pause, resume, stop, sortByScore, requestDetails],
   )
   return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>
 }

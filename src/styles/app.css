@@ -1010,6 +1010,36 @@ button.crumb:hover {
   min-width: 480px;
 }
 
+.sort-bar {
+  flex: none;
+  display: flex;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding-inline: 8px;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 12px;
+}
+
+.sort-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.sort-button:disabled {
+  color: var(--text-disabled);
+}
+
+.sort-button--active {
+  border-bottom-color: var(--accent);
+}
+
 .results-notice {
   flex: none;
   margin: 0;

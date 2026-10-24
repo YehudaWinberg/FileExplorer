@@ -412,3 +412,54 @@ describe('stop and cap messages (2.3)', () => {
     }
   })
 })
+
+
+describe('sort by proximity (3.3)', () => {
+  const sortButton = () => screen.getByRole('button', { name: 'מיון לפי קרבה' }) as HTMLButtonElement
+  const names = () => resultNames()
+
+  async function withListings(run: () => Promise<void>) {
+    const original = [listings.root, listings[reports.id]]
+    listings.root = [file(root, 'Report.pdf'), file(root, 'abcdef.txt'), folder(reports)]
+    listings[reports.id] = [file(reports, 'abc.txt')]
+    try {
+      await run()
+    } finally {
+      ;[listings.root, listings[reports.id]] = original
+    }
+  }
+
+  it('is always visible; disabled with a hint while scanning and for an empty session', async () => {
+    let release!: () => void
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+    await openRoot()
+    await searchFor('rep')
+    expect(sortButton().disabled).toBe(true)
+    expect(sortButton().getAttribute('title')).toBe('המיון יהיה זמין בסיום הסריקה')
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'עצירה' })))
+    expect(sortButton().disabled).toBe(true) // סשן ריק
+  })
+
+  it('stays in arrival order until clicked; then sorts by score, keeps the underline and does not auto-resort', async () => {
+    await withListings(async () => {
+      await openRoot()
+      await searchFor('abc')
+      expect(names()).toEqual(['abcdef.txt', 'abc.txt'])
+      expect(sortButton().disabled).toBe(false)
+      expect(sortButton().classList.contains('sort-button--active')).toBe(false)
+
+      await act(async () => fireEvent.click(sortButton()))
+      expect(names()).toEqual(['abc.txt', 'abcdef.txt'])
+      expect(sortButton().classList.contains('sort-button--active')).toBe(true)
+      expect(sortButton().getAttribute('aria-pressed')).toBe('true')
+    })
+  })
+
+  it('stays visible and disabled on the "no results" screen', async () => {
+    await openRoot()
+    await searchFor('zzz')
+    expect(screen.getByText('לא נמצאו תוצאות')).toBeTruthy()
+    expect(sortButton().disabled).toBe(true)
+  })
+})

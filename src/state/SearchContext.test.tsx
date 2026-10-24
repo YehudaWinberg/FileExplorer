@@ -292,3 +292,33 @@ describe('SearchProvider result cap', () => {
     expect(api.search.session?.count).toBe(1)
   })
 })
+
+
+describe('SearchProvider sort by score', () => {
+  it('sorts while paused and returns to arrival order on resume', async () => {
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const { adapter } = makeAdapter()
+    const original = adapter.listNames
+    adapter.listNames = async (folder) => {
+      if (folder.id === sub.id) await held
+      return original(folder)
+    }
+    mount(adapter)
+    act(() => api.explorer.actions.goTo({ type: 'folder', folder: root }))
+    act(() => api.search.actions.start('txt'))
+    await waitFor(() => expect(names()).toEqual(['a.txt']))
+
+    act(() => api.search.actions.sortByScore()) // בסריקה פעילה: מתעלמים
+    expect(api.search.session?.sortedByScore).toBe(false)
+
+    act(() => api.search.actions.pause())
+    act(() => api.search.actions.sortByScore())
+    expect(api.search.session?.sortedByScore).toBe(true)
+
+    act(() => api.search.actions.resume())
+    expect(api.search.session?.sortedByScore).toBe(false)
+    await act(async () => release())
+    await waitFor(() => expect(api.search.session?.status).toBe('done'))
+  })
+})

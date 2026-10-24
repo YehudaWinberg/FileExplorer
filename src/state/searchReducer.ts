@@ -37,6 +37,7 @@ export type SearchAction =
   | { type: 'resume'; runId: number }
   | { type: 'stop'; runId: number }
   | { type: 'cap'; runId: number }
+  | { type: 'sortByScore'; runId: number }
   | { type: 'clear' }
 
 export function searchReducer(state: SearchState, action: SearchAction): SearchState {
@@ -58,10 +59,20 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
     case 'pause':
       return state.status === 'scanning' ? { ...state, status: 'paused' } : state
     case 'resume':
-      return state.status === 'paused' ? { ...state, status: 'scanning' } : state
+      // חזרה לסריקה מחזירה את התצוגה לסדר ההגעה (AD-10): הדגל מתאפס.
+      return state.status === 'paused' ? { ...state, status: 'scanning', sortedByScore: false } : state
+    case 'sortByScore':
+      // מיון זמין רק מחוץ ל-scanning ורק כשיש מה למיין.
+      return state.status === 'scanning' || state.count === 0 ? state : { ...state, sortedByScore: true }
     case 'cap':
       return state.status === 'scanning' || state.status === 'paused' ? { ...state, status: 'capped' } : state
     case 'stop':
       return state.status === 'scanning' || state.status === 'paused' ? { ...state, status: 'stopped' } : state
   }
+}
+
+/** תצוגה נגזרת: ציון יורד במיון יציב, ובשוויון הפריט הרדוד יותר קודם (AD-10). */
+export function orderResults(results: SearchResult[], sortedByScore: boolean): SearchResult[] {
+  if (!sortedByScore) return results
+  return [...results].sort((a, b) => b.score - a.score || a.depth - b.depth)
 }

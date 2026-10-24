@@ -8,7 +8,7 @@ import { useSearch } from '../state/SearchContext'
 import { CAPPED_MESSAGE, STOPPED_MESSAGE } from '../state/searchReducer'
 import { useVisibleEntries } from '../state/selectors'
 import { EmptyState } from './EmptyState'
-import { FileKindIcon } from './icons'
+import { FileKindIcon, SortArrowIcon } from './icons'
 import { ProximityRing } from './ProximityRing'
 
 function ResultRow({ entry, parent, score, selected, isNew, onSelect, onVisible }: {
@@ -50,7 +50,33 @@ function ResultRow({ entry, parent, score, selected, isNew, onSelect, onVisible 
   )
 }
 
-/** מסך התוצאות: שלוש עמודות (שם ותאריך, נתיב, גודל), בסדר ההגעה של הסריקה. */
+const SORT_LABEL = 'מיון לפי קרבה'
+const SORT_DISABLED_HINT = 'המיון יהיה זמין בסיום הסריקה'
+
+/** כפתור המיון גלוי תמיד; מושבת בסריקה פעילה ובסשן ריק (UX-DR7). */
+function SortBar() {
+  const { session, actions } = useSearch()
+  const scanning = session?.status === 'scanning'
+  const disabled = !session || scanning || session.count === 0
+  const active = session?.sortedByScore ?? false
+  return (
+    <div className="sort-bar">
+      <button
+        type="button"
+        className={`sort-button${active ? ' sort-button--active' : ''}`}
+        disabled={disabled}
+        aria-pressed={active}
+        title={scanning ? SORT_DISABLED_HINT : SORT_LABEL}
+        onClick={actions.sortByScore}
+      >
+        <SortArrowIcon size={12} />
+        <span>{SORT_LABEL}</span>
+      </button>
+    </div>
+  )
+}
+
+/** מסך התוצאות: שלוש עמודות (שם ותאריך, נתיב, גודל); סדר ההגעה, או מיון לפי קרבה ביוזמת המשתמש. */
 export function SearchResults() {
   const { state, actions, location } = useExplorer()
   const { session, requestDetails } = useSearch()
@@ -61,53 +87,50 @@ export function SearchResults() {
 
   if (location.type !== 'search') return null
 
-  if (session?.status === 'done' && entries.length === 0) {
-    return (
-      <EmptyState
-        title="לא נמצאו תוצאות"
-        detail={`אין קובץ שמתאים ל-"${session.pattern}" בתיקיית ${session.root.name} ובתיקיות שבתוכה.`}
-      >
-        <p className="empty__detail">נסו שם קצר יותר, למשל כהן*</p>
-      </EmptyState>
-    )
-  }
-
   // `לא נמצאו תוצאות` שמורה ל-`done`; הפסקה ותקרה מקבלות הודעה משלהן.
   const notice =
     session?.status === 'capped' ? CAPPED_MESSAGE : session?.status === 'stopped' ? STOPPED_MESSAGE : null
-  if (notice && entries.length === 0) return <EmptyState title={notice} />
+  const empty = entries.length === 0
 
   return (
     <div className="file-view">
-      {notice && (
-        <p className="results-notice">
-          {notice}
-        </p>
+      <SortBar />
+      {empty && session?.status === 'done' && (
+        <EmptyState
+          title="לא נמצאו תוצאות"
+          detail={`אין קובץ שמתאים ל-"${session.pattern}" בתיקיית ${session.root.name} ובתיקיות שבתוכה.`}
+        >
+          <p className="empty__detail">נסו שם קצר יותר, למשל כהן*</p>
+        </EmptyState>
       )}
-      <div className="file-view__scroll">
-        <div className="results" role="table" aria-label="תוצאות החיפוש" onClick={actions.clearSelection}>
-          <div role="row" className="result-row result-row--header" onClick={(e) => e.stopPropagation()}>
-            <div role="columnheader">שם</div>
-            <div role="columnheader">נתיב</div>
-            <div role="columnheader" className="result-size">גודל</div>
+      {empty && notice && <EmptyState title={notice} />}
+      {!empty && notice && <p className="results-notice">{notice}</p>}
+      {!empty && (
+        <div className="file-view__scroll">
+          <div className="results" role="table" aria-label="תוצאות החיפוש" onClick={actions.clearSelection}>
+            <div role="row" className="result-row result-row--header" onClick={(e) => e.stopPropagation()}>
+              <div role="columnheader">שם</div>
+              <div role="columnheader">נתיב</div>
+              <div role="columnheader" className="result-size">גודל</div>
+            </div>
+            {entries.map((entry) => (
+              <ResultRow
+                key={entry.id}
+                entry={entry}
+                parent={resultById.get(entry.id)!.parent}
+                score={resultById.get(entry.id)!.score}
+                selected={selected.has(entry.id)}
+                isNew={session?.status === 'scanning'}
+                onVisible={requestDetails}
+                onSelect={(event) => {
+                  event.stopPropagation()
+                  actions.select(entry.id, event.ctrlKey || event.metaKey, event.shiftKey, orderedIds)
+                }}
+              />
+            ))}
           </div>
-          {entries.map((entry) => (
-            <ResultRow
-              key={entry.id}
-              entry={entry}
-              parent={resultById.get(entry.id)!.parent}
-              score={resultById.get(entry.id)!.score}
-              selected={selected.has(entry.id)}
-              isNew={session?.status === 'scanning'}
-              onVisible={requestDetails}
-              onSelect={(event) => {
-                event.stopPropagation()
-                actions.select(entry.id, event.ctrlKey || event.metaKey, event.shiftKey, orderedIds)
-              }}
-            />
-          ))}
         </div>
-      </div>
+      )}
     </div>
   )
 }

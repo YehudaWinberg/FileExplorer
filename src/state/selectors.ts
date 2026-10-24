@@ -3,6 +3,7 @@ import type { FileSystemEntry } from '../lib/models/entry'
 import { filterByTypes } from '../lib/utils/typeFilter'
 import { useExplorer } from './ExplorerContext'
 import { useSearchOptional, type EntryDetails } from './SearchContext'
+import { orderResults } from './searchReducer'
 
 export function withDetails(entry: FileSystemEntry, details: Record<string, EntryDetails>): FileSystemEntry {
   const extra = details[entry.id]
@@ -17,7 +18,9 @@ export function useVisibleEntries(): FileSystemEntry[] {
   const details = search?.details
   return useMemo(() => {
     if (location.type === 'search') {
-      return (session?.results ?? []).map((result) => withDetails(result.entry, details ?? {}))
+      return orderResults(session?.results ?? [], session?.sortedByScore ?? false).map((result) =>
+        withDetails(result.entry, details ?? {}),
+      )
     }
     return filterByTypes(state.entries, state.typeFilter)
   }, [location.type, session, details, state.entries, state.typeFilter])
