@@ -30,6 +30,8 @@ const listings: Record<string, FileSystemEntry[]> = {
 
 /** כשה-gate פעיל, קריאות listNames ממתינות עד ש-`release` נקרא (סריקה "בדרך"). */
 let gate: { wait: Promise<void>; release: () => void } | null
+let listNamesCalls: string[]
+const rootScans = () => listNamesCalls.filter((id) => id === 'root').length
 let pickFolder: ReturnType<typeof vi.fn<FileSystemAdapter['pickFolder']>>
 
 function makeAdapter(): FileSystemAdapter {
@@ -40,6 +42,7 @@ function makeAdapter(): FileSystemAdapter {
     listEntries: async (f) => listings[f.id] ?? [],
     listSubfolders: async () => [],
     listNames: async (f) => {
+      listNamesCalls.push(f.id)
       if (gate) await gate.wait
       return listings[f.id] ?? []
     },
@@ -84,6 +87,7 @@ async function openRoot() {
 
 beforeEach(() => {
   gate = null
+  listNamesCalls = []
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
 })
 
@@ -202,5 +206,80 @@ describe('folder picker icon (FR22 regression)', () => {
     expect(within(address()).getByText('Root')).toBeTruthy()
     const button = screen.getByRole('button', { name: 'בחירת תיקייה' })
     expect(button.getAttribute('title')).toBe('בחירת תיקייה')
+  })
+})
+
+const resultNames = () =>
+  within(screen.getByRole('table', { name: 'תוצאות החיפוש' }))
+    .getAllByRole('row')
+    .slice(1)
+    .map((r) => r.querySelector('.ellipsis')?.textContent)
+const inResults = () => screen.queryByRole('table', { name: 'תוצאות החיפוש' })
+
+async function searchFor(text: string) {
+  await type(text)
+  await advance(300)
+  await flush()
+}
+
+describe('leaving the results (FR21)', () => {
+  it('clearing the box returns to the root folder of the search and clears the session', async () => {
+    await openRoot()
+    await act(async () => fireEvent.click(screen.getByText('open-reports')))
+    await searchFor('q1')
+    expect(resultNames()).toEqual(['q1.txt'])
+
+    await type('')
+    await flush()
+    expect(inResults()).toBeNull()
+    expect(within(address()).getByText('Reports')).toBeTruthy()
+    expect(screen.getByRole('table', { name: 'תוכן התיקייה' })).toBeTruthy()
+    expect(screen.queryByText(/תוצאות$/)).toBeNull()
+  })
+
+  it('up from results goes to the search root; refresh re-runs the search', async () => {
+    await openRoot()
+    await searchFor('report')
+    expect(resultNames()).toHaveLength(3)
+
+    const scansBefore = rootScans()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'רענון' })))
+    await flush()
+    expect(resultNames()).toHaveLength(3)
+    expect(rootScans()).toBe(scansBefore + 1)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'תיקיית אב' })))
+    expect(inResults()).toBeNull()
+    expect(screen.getByRole('table', { name: 'תוכן התיקייה' })).toBeTruthy()
+  })
+
+  it.each([
+    ['clicking a breadcrumb', () => fireEvent.click(within(address()).getByText('Root'))],
+    ['picking a folder', () => fireEvent.click(screen.getByRole('button', { name: 'בחירת תיקייה' }))],
+    ['going to another place', () => fireEvent.click(screen.getByText('go-pc'))],
+  ])('%s during an active scan aborts it and leaves no stale results', async (_name, navigate) => {
+    let release!: () => void
+    await openRoot()
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+    await searchFor('report')
+    expect(screen.getByRole('button', { name: 'עצירה' })).toBeTruthy()
+
+    await act(async () => void navigate())
+    await act(async () => {
+      release()
+      await gate!.wait
+    })
+    await flush()
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+    expect(inResults()).toBeNull()
+    expect(screen.queryByText(/נמצאו/)).toBeNull()
+  })
+
+  it('a plain name the old filter would find also appears in the search results (FR22)', async () => {
+    await openRoot()
+    await searchFor('photo')
+    expect(resultNames()).toEqual(['photo.jpg'])
+    await searchFor('notes.txt')
+    expect(resultNames()).toEqual(['notes.txt'])
   })
 })

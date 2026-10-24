@@ -10,7 +10,7 @@ export function Toolbar() {
   const [searchFocused, setSearchFocused] = useState(false)
   const canBack = state.index > 0
   const canForward = state.index < state.history.length - 1
-  const isFolder = location.type === 'folder'
+  const isFolder = location.type === 'folder' || location.type === 'search'
 
   return (
     <div className="toolbar">

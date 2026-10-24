@@ -12,7 +12,8 @@ const STOP_LABEL = 'עצירה'
  * אחרי הקלדה נקראת `search.schedule` (debounce) ואין סינון מיידי של התיקייה.
  */
 export function SearchBox({ onFocusChange }: { onFocusChange?: (focused: boolean) => void }) {
-  const { location } = useExplorer()
+  const { location, actions: explorer } = useExplorer()
+  const goTo = explorer.goTo
   const { session, actions } = useSearch()
   const [draft, setDraft] = useState('')
   const [focused, setFocused] = useState(false)
@@ -29,8 +30,10 @@ export function SearchBox({ onFocusChange }: { onFocusChange?: (focused: boolean
 
   const change = (value: string) => {
     setDraft(value)
-    if (value.trim() === '') actions.cancelScheduled()
-    else actions.schedule(value)
+    if (value.trim() !== '') return actions.schedule(value)
+    actions.cancelScheduled()
+    // ניקוי התיבה ממסך תוצאות חוזר לתיקיית ה-root של החיפוש (ניווט יזום: מנקה את הסשן).
+    if (location.type === 'search') goTo({ type: 'folder', folder: location.root })
   }
   const focus = (value: boolean) => {
     setFocused(value)

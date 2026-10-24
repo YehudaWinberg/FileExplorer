@@ -144,6 +144,8 @@ export function ExplorerProvider({
       forward: () => dispatch({ type: 'forward' }),
       up: () => {
         const current = currentLocation(stateRef.current)
+        // ממסך תוצאות "למעלה" יוצא מהחיפוש אל תיקיית ה-root שלו.
+        if (current.type === 'search') return navigate({ type: 'folder', folder: current.root })
         if (current.type !== 'folder') return
         navigate(current.folder.parent ? { type: 'folder', folder: current.folder.parent } : { type: 'home' })
       },
