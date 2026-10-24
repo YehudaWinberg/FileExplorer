@@ -86,6 +86,17 @@ describe('SearchResults', () => {
     expect(deepPath.getAttribute('title')).toBe('Root/a/b/c/d')
   })
 
+  it('shows each result score as a ring: direct full match 95 (not 100), deeper results lower', async () => {
+    const { adapter } = makeAdapter()
+    mount(adapter)
+    search('*.txt')
+    await waitFor(() => expect(rows()).toHaveLength(2))
+    const [top, deep] = rows()
+    expect(within(top).getByRole('img').getAttribute('aria-label')).toBe('קרבה 95 אחוז')
+    expect(within(deep).getByRole('img').getAttribute('aria-label')).toBe('קרבה 75 אחוז')
+    expect(within(top).getByRole('img').getAttribute('title')).toBe('קרבה 95 אחוז')
+  })
+
   it('loads size and date only for displayed results', async () => {
     const { adapter, getFile } = makeAdapter()
     mount(adapter)

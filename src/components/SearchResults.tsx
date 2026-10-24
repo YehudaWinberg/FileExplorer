@@ -9,10 +9,12 @@ import { CAPPED_MESSAGE, STOPPED_MESSAGE } from '../state/searchReducer'
 import { useVisibleEntries } from '../state/selectors'
 import { EmptyState } from './EmptyState'
 import { FileKindIcon } from './icons'
+import { ProximityRing } from './ProximityRing'
 
-function ResultRow({ entry, parent, selected, isNew, onSelect, onVisible }: {
+function ResultRow({ entry, parent, score, selected, isNew, onSelect, onVisible }: {
   entry: FileSystemEntry
   parent: FolderRef
+  score: number
   selected: boolean
   isNew: boolean
   onSelect: (event: MouseEvent) => void
@@ -32,7 +34,9 @@ function ResultRow({ entry, parent, selected, isNew, onSelect, onVisible }: {
       onClick={onSelect}
     >
       <div role="cell" className="result-name">
-        <FileKindIcon kind={getFileKind(entry)} size={18} />
+        <ProximityRing score={score}>
+          <FileKindIcon kind={getFileKind(entry)} size={16} />
+        </ProximityRing>
         <span className="result-name__text">
           <span className="ellipsis" title={entry.name}>{entry.name}</span>
           {modified && <span className="result-name__date">שונה ב-{modified}</span>}
@@ -53,7 +57,7 @@ export function SearchResults() {
   const entries = useVisibleEntries()
   const selected = useMemo(() => new Set(state.selection), [state.selection])
   const orderedIds = useMemo(() => entries.map((e) => e.id), [entries])
-  const parents = useMemo(() => new Map((session?.results ?? []).map((r) => [r.entry.id, r.parent])), [session?.results])
+  const resultById = useMemo(() => new Map((session?.results ?? []).map((r) => [r.entry.id, r])), [session?.results])
 
   if (location.type !== 'search') return null
 
@@ -91,7 +95,8 @@ export function SearchResults() {
             <ResultRow
               key={entry.id}
               entry={entry}
-              parent={parents.get(entry.id)!}
+              parent={resultById.get(entry.id)!.parent}
+              score={resultById.get(entry.id)!.score}
               selected={selected.has(entry.id)}
               isNew={session?.status === 'scanning'}
               onVisible={requestDetails}

@@ -1080,6 +1080,50 @@ button.crumb:hover {
   flex: none;
 }
 
+.ring {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+}
+
+.ring__svg {
+  position: absolute;
+  inset: 0;
+}
+
+.ring__track {
+  stroke: var(--ring-track);
+}
+
+.ring__fill {
+  stroke: var(--ring-fill);
+}
+
+.ring__icon {
+  display: grid;
+  place-items: center;
+}
+
+.ring__badge {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  min-width: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--text);
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+}
+
 .result-name__text {
   display: grid;
   min-width: 0;

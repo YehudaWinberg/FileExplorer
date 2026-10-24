@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-25-2026 00:23
-last_updated: 10-25-2026 01:42
+last_updated: 10-25-2026 01:48
 project: FileExplorer
 project_key: NOKEY
 tracking_system: file-system
@@ -52,7 +52,7 @@ development_status:
 
   epic-3: in-progress
   3-1-חישוב-אחוז-קרבה: review
-  3-2-טבעת-קרבה-בשורת-תוצאה: backlog
+  3-2-טבעת-קרבה-בשורת-תוצאה: review
   3-3-מיון-לפי-קרבה: backlog
   epic-3-retrospective: optional
 
