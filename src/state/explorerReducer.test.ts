@@ -10,6 +10,24 @@ function run(...actions: ExplorerAction[]): ExplorerState {
   return actions.reduce(explorerReducer, initialState)
 }
 
+describe('navigate replace and search locations', () => {
+  const search = (pattern: string): Location => ({ type: 'search', root, pattern })
+
+  it('replace swaps the current entry and cuts forward history', () => {
+    let state = run({ type: 'navigate', location: at(root) }, { type: 'navigate', location: at(child) })
+    state = explorerReducer(state, { type: 'back' })
+    state = explorerReducer(state, { type: 'navigate', location: search('a'), replace: true })
+    expect(state.history).toEqual([{ type: 'home' }, search('a')])
+    expect(currentLocation(state)).toEqual(search('a'))
+    expect(state.status).toBe('idle')
+  })
+
+  it('without replace a search location adds an entry', () => {
+    const state = run({ type: 'navigate', location: at(root) }, { type: 'navigate', location: search('a') })
+    expect(state.history).toHaveLength(3)
+  })
+})
+
 describe('navigation', () => {
   it('starts at home with nothing to go back/forward to', () => {
     const state = run({ type: 'back' }, { type: 'forward' })

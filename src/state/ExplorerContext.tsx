@@ -6,6 +6,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  type MutableRefObject,
   type ReactNode,
 } from 'react'
 import { FsError, type FileSystemAdapter } from '../lib/fileSystem'
@@ -19,8 +20,19 @@ import {
   type ExplorerState,
 } from './explorerReducer'
 
+/** `user`: ניווט יזום של המשתמש (מנקה חיפוש). `result`: מעבר מתוצאה או התחלת חיפוש (לא מנקה). */
+export type NavigationOrigin = 'user' | 'result'
+
+export interface GoToOptions {
+  origin?: NavigationOrigin
+  /** מחליף את הרשומה הנוכחית בהיסטוריה וחותך forward. */
+  replace?: boolean
+}
+
 export interface ExplorerActions {
   pickFolder: (special?: SpecialFolderKey) => Promise<void>
+  /** שער הניווט היחיד; ברירת המחדל `origin: 'user'`. */
+  goTo: (location: Location, options?: GoToOptions) => void
   navigate: (location: Location) => void
   openFolder: (folder: FolderRef) => void
   back: () => void
@@ -43,6 +55,8 @@ interface ExplorerContextValue {
   actions: ExplorerActions
   adapter: FileSystemAdapter
   supported: boolean
+  /** ה-SearchProvider רושם כאן ניקוי חיפוש שרץ בכל ניווט מסוג `user`. */
+  userNavigationHook: MutableRefObject<(() => void) | null>
 }
 
 const ExplorerContext = createContext<ExplorerContextValue | null>(null)
@@ -62,6 +76,7 @@ export function ExplorerProvider({
   const location = currentLocation(state)
   const requestRef = useRef(0)
   const stateRef = useRef(state)
+  const userNavigationHook = useRef<(() => void) | null>(null)
   useEffect(() => {
     stateRef.current = state
   })
@@ -105,7 +120,11 @@ export function ExplorerProvider({
     }
   }, [location, loadChildren])
 
-  const navigate = useCallback((next: Location) => dispatch({ type: 'navigate', location: next }), [])
+  const goTo = useCallback((next: Location, options: GoToOptions = {}) => {
+    if ((options.origin ?? 'user') === 'user') userNavigationHook.current?.()
+    dispatch({ type: 'navigate', location: next, replace: options.replace })
+  }, [])
+  const navigate = useCallback((next: Location) => goTo(next), [goTo])
 
   const actions = useMemo<ExplorerActions>(
     () => ({
@@ -114,11 +133,12 @@ export function ExplorerProvider({
           const folder = await adapter.pickFolder(special)
           if (!folder) return
           dispatch({ type: 'picked', folder, special })
-          dispatch({ type: 'navigate', location: { type: 'folder', folder } })
+          goTo({ type: 'folder', folder })
         } catch (error) {
           dispatch({ type: 'notice', message: describeError(error) })
         }
       },
+      goTo,
       navigate,
       openFolder: (folder) => navigate({ type: 'folder', folder }),
       back: () => dispatch({ type: 'back' }),
@@ -131,6 +151,7 @@ export function ExplorerProvider({
       refresh: () => {
         const current = stateRef.current
         const here = currentLocation(current)
+        userNavigationHook.current?.()
         dispatch({ type: 'refresh' })
         if (here.type === 'folder' && current.expanded[here.folder.id]) void loadChildren(here.folder)
       },
@@ -148,7 +169,7 @@ export function ExplorerProvider({
       },
       dismissNotice: () => dispatch({ type: 'notice', message: null }),
     }),
-    [adapter, navigate, loadChildren],
+    [adapter, goTo, navigate, loadChildren],
   )
 
   const value = useMemo(
@@ -158,6 +179,7 @@ export function ExplorerProvider({
       actions,
       adapter,
       supported: adapter.isSupported(),
+      userNavigationHook,
     }),
     [state, location, actions, adapter],
   )

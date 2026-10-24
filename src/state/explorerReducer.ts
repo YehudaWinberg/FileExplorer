@@ -55,7 +55,8 @@ export const initialState: ExplorerState = {
 
 export type ExplorerAction =
   | { type: 'picked'; folder: FolderRef; special?: SpecialFolderKey }
-  | { type: 'navigate'; location: Location }
+  /** `replace`: מחליף את הרשומה הנוכחית (וחותך forward) במקום להוסיף רשומה. */
+  | { type: 'navigate'; location: Location; replace?: boolean }
   | { type: 'back' }
   | { type: 'forward' }
   | { type: 'refresh' }
@@ -128,7 +129,8 @@ export function explorerReducer(state: ExplorerState, action: ExplorerAction): E
     }
     case 'navigate': {
       if (sameLocation(currentLocation(state), action.location)) return state
-      const history = [...state.history.slice(0, state.index + 1), action.location]
+      const keep = action.replace ? state.index : state.index + 1
+      const history = [...state.history.slice(0, keep), action.location]
       return enter({ ...state, history }, history.length - 1)
     }
     case 'back':

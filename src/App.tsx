@@ -26,7 +26,9 @@ export default function App() {
       <div className="body">
         <Sidebar />
         <main className="content">
-          {location.type === 'folder' ? <FileList /> : <PlacesView mode={location.type} />}
+          {location.type === 'folder' && <FileList />}
+          {/* מסך התוצאות (location.type === 'search') נוסף בסיפור 1.4. */}
+          {location.type !== 'folder' && location.type !== 'search' && <PlacesView mode={location.type} />}
         </main>
         <DetailsPane />
       </div>
