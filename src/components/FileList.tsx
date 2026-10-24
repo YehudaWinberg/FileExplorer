@@ -65,8 +65,15 @@ function Row({ entry, selected, lineCount, onSelect, onOpen }: {
   onSelect: (event: MouseEvent) => void
   onOpen: () => void
 }) {
+  const ref = useRef<HTMLDivElement>(null)
+  // שורה שנטענת כשהיא כבר נבחרת (מעבר למיקום מתוצאת חיפוש) נגללת לתצוגה; בחירה בלחיצה לא מגללת.
+  const [selectedOnMount] = useState(selected)
+  useEffect(() => {
+    if (selectedOnMount) ref.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [selectedOnMount])
   return (
     <div
+      ref={ref}
       role="row"
       aria-selected={selected}
       className={selected ? 'row row--selected' : 'row'}

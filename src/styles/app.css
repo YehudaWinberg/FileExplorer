@@ -489,6 +489,11 @@ button.crumb:hover {
   border-radius: var(--radius);
 }
 
+/* גלילה לשורה לא מסתירה אותה מתחת לכותרת הדביקה (32px) */
+.row:not(.row--header) {
+  scroll-margin-top: 32px;
+}
+
 .row > div {
   padding-inline: 6px;
   min-width: 0;
