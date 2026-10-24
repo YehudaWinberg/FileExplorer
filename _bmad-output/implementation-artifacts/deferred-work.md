@@ -26,3 +26,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-results-screen.md`
   summary: ניווט מקלדת ו-ARIA תקין (grid) למסך התוצאות, והצגת קבצים לא קריאים.
   evidence: אין `tabIndex`/חצים בשורות; `unreadable` נשמר אך השורה מוצגת בלי סימון.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5-address-bar-search-box.md`
+  summary: לחיצה על עצירה מעבירה את הפוקוס ל-body והתיבה מתכווצת באמצע הלחיצה; Enter אינו מתחיל חיפוש מיידי.
+  evidence: הכפתור נעלם אחרי העצירה ואין `onKeyDown`; אין בדיקה לאף אחד מהם.

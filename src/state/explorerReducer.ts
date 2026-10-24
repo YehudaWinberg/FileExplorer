@@ -6,7 +6,6 @@ import {
   type SpecialFolderKey,
 } from '../lib/models/entry'
 import type { SortKey, SortState } from '../lib/models/sort'
-import { matchesName } from '../lib/utils/nameSearch'
 
 export type LoadStatus = 'idle' | 'loading' | 'error'
 
@@ -25,8 +24,6 @@ export interface ExplorerState {
   sort: SortState
   /** תוויות סוג נבחרות לסינון; ריק = ללא סינון. */
   typeFilter: string[]
-  /** מחרוזת החיפוש לפי שם בתיקייה הנוכחית; ריק = ללא סינון. */
-  searchQuery: string
   expanded: Record<string, boolean>
   children: Record<string, FolderRef[]>
   treeErrors: Record<string, string>
@@ -46,7 +43,6 @@ export const initialState: ExplorerState = {
   anchor: null,
   sort: { key: 'name', direction: 'asc' },
   typeFilter: [],
-  searchQuery: '',
   expanded: {},
   children: {},
   treeErrors: {},
@@ -68,7 +64,6 @@ export type ExplorerAction =
   | { type: 'sort'; key: SortKey }
   | { type: 'toggleTypeFilter'; label: string }
   | { type: 'clearTypeFilter' }
-  | { type: 'search'; query: string }
   | { type: 'expand'; ids: string[] }
   | { type: 'toggleExpand'; id: string }
   | { type: 'childrenLoaded'; id: string; children: FolderRef[] }
@@ -88,7 +83,6 @@ function enter(state: ExplorerState, index: number): ExplorerState {
     selection: [],
     anchor: null,
     typeFilter: [],
-    searchQuery: '',
     error: null,
     status: isFolder ? 'loading' : 'idle',
   }
@@ -171,17 +165,6 @@ export function explorerReducer(state: ExplorerState, action: ExplorerAction): E
       }
     case 'clearTypeFilter':
       return state.typeFilter.length ? { ...state, typeFilter: [] } : state
-    case 'search': {
-      // פריטים נבחרים שאינם מופיעים עוד בתוצאות החיפוש יוצאים מהבחירה.
-      const visible = new Set(state.entries.filter((e) => matchesName(e, action.query)).map((e) => e.id))
-      const selection = state.selection.filter((id) => visible.has(id))
-      return {
-        ...state,
-        searchQuery: action.query,
-        selection: selection.length === state.selection.length ? state.selection : selection,
-        anchor: state.anchor && visible.has(state.anchor) ? state.anchor : null,
-      }
-    }
     case 'expand': {
       const expanded = { ...state.expanded }
       for (const id of action.ids) expanded[id] = true

@@ -204,20 +204,4 @@ describe('line count column', () => {
     for (const p of pending.slice(PARALLEL_READS + 1)) await act(async () => p.resolve())
     await waitFor(() => names.forEach((n) => expect(cell(n).textContent).toBe('0')))
   })
-
-  it('does not re-read files when searching, and keeps the counts', async () => {
-    listings.root = [file(root, 'alpha.txt'), file(root, 'beta.txt')]
-    contents['root/alpha.txt'] = 'a\nb'
-    await openRoot('alpha.txt')
-    await waitFor(() => expect(cell('alpha.txt').textContent).toBe('2'))
-    const before = reads.length
-
-    const search = screen.getByRole('searchbox', { name: 'חיפוש בתיקייה הנוכחית' })
-    await act(async () => fireEvent.change(search, { target: { value: 'alp' } }))
-    expect(table().queryByText('beta.txt')).toBeNull()
-    expect(cell('alpha.txt').textContent).toBe('2')
-    await act(async () => fireEvent.change(search, { target: { value: '' } }))
-    expect(cell('beta.txt').textContent).toBe('0')
-    expect(reads).toHaveLength(before)
-  })
 })

@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import type { FileSystemEntry } from '../lib/models/entry'
-import { filterByName } from '../lib/utils/nameSearch'
 import { filterByTypes } from '../lib/utils/typeFilter'
 import { useExplorer } from './ExplorerContext'
 import { useSearchOptional, type EntryDetails } from './SearchContext'
@@ -20,8 +19,8 @@ export function useVisibleEntries(): FileSystemEntry[] {
     if (location.type === 'search') {
       return (session?.results ?? []).map((result) => withDetails(result.entry, details ?? {}))
     }
-    return filterByTypes(filterByName(state.entries, state.searchQuery), state.typeFilter)
-  }, [location.type, session, details, state.entries, state.searchQuery, state.typeFilter])
+    return filterByTypes(state.entries, state.typeFilter)
+  }, [location.type, session, details, state.entries, state.typeFilter])
 }
 
 /** הפריט היחיד שנבחר (כולל גודל ותאריך שנטענו לתוצאה), או null. */

@@ -18,9 +18,17 @@ import { searchReducer, type SearchSession } from './searchReducer'
 export interface SearchActions {
   /** מתחיל חיפוש מהמיקום הנוכחי (`folder`, או `search` להחלפה). במקומות אחרים לא עושה דבר. */
   start: (pattern: string) => void
+  /** כמו `start` אחרי `SEARCH_DEBOUNCE_MS` ללא קריאה נוספת; קריאה חדשה מאפסת את הטיימר. */
+  schedule: (pattern: string) => void
+  /** מבטל התחלת חיפוש ממתינה (למשל כשהתיבה התרוקנה). */
+  cancelScheduled: () => void
+  /** האם מחכה התחלת חיפוש (המשתמש באמצע הקלדה). */
+  isScheduled: () => boolean
   /** עוצר סופית; התוצאות שנמצאו נשמרות. */
   stop: () => void
 }
+
+export const SEARCH_DEBOUNCE_MS = 300
 
 /** גודל ותאריך נטענים רק לתוצאות שמוצגות (הסריקה עצמה לא קוראת קבצים). */
 export type EntryDetails = Pick<FileSystemEntry, 'size' | 'modified' | 'mimeType' | 'unreadable'>
@@ -50,10 +58,18 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const runIdRef = useRef(0)
   const launchedRunRef = useRef<number | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const locationRef = useRef(location)
   useEffect(() => {
     locationRef.current = location
   })
+
+  const cancelScheduled = useCallback(() => {
+    if (timerRef.current !== null) clearTimeout(timerRef.current)
+    timerRef.current = null
+  }, [])
+
+  const isScheduled = useCallback(() => timerRef.current !== null, [])
 
   const abortRun = useCallback(() => {
     controllerRef.current?.abort()
@@ -63,6 +79,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   // ניווט יזום של המשתמש: ניקוי הסשן וביטול הריצה באותו אירוע (React מאחד לרינדור אחד).
   useEffect(() => {
     userNavigationHook.current = () => {
+      cancelScheduled()
       abortRun()
       launchedRunRef.current = null
       dispatch({ type: 'clear' })
@@ -70,15 +87,16 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     return () => {
       userNavigationHook.current = null
     }
-  }, [userNavigationHook, abortRun])
+  }, [userNavigationHook, abortRun, cancelScheduled])
 
   // בעת הסרה (כולל סימולציית StrictMode) מבטלים ריצה פעילה ומאפשרים הפעלה מחדש.
   useEffect(
     () => () => {
+      cancelScheduled()
       abortRun()
       launchedRunRef.current = null
     },
-    [abortRun],
+    [abortRun, cancelScheduled],
   )
 
   const begin = useCallback(
@@ -107,10 +125,22 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     [begin, explorer],
   )
 
+  const schedule = useCallback(
+    (pattern: string) => {
+      cancelScheduled()
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null
+        start(pattern)
+      }, SEARCH_DEBOUNCE_MS)
+    },
+    [cancelScheduled, start],
+  )
+
   const stop = useCallback(() => {
+    cancelScheduled()
     abortRun()
     if (runIdRef.current) dispatch({ type: 'stop', runId: runIdRef.current })
-  }, [abortRun])
+  }, [abortRun, cancelScheduled])
 
   const runSearch = useCallback(
     async (runId: number, root: FolderRef, pattern: string) => {
@@ -171,8 +201,8 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 
   const details = session && loaded.runId === session.runId ? loaded.byId : NO_DETAILS
   const value = useMemo(
-    () => ({ session, details, actions: { start, stop }, requestDetails }),
-    [session, details, start, stop, requestDetails],
+    () => ({ session, details, actions: { start, schedule, cancelScheduled, isScheduled, stop }, requestDetails }),
+    [session, details, start, schedule, cancelScheduled, isScheduled, stop, requestDetails],
   )
   return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>
 }

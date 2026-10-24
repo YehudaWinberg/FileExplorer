@@ -3,10 +3,12 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FileSystemAdapter } from '../lib/fileSystem'
 import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
-import { jpegWithExif } from '../lib/testFixtures'
 import { ExplorerProvider, useExplorer } from '../state/ExplorerContext'
-import { DetailsPane } from './DetailsPane'
+import { SearchProvider } from '../state/SearchContext'
 import { FileList } from './FileList'
+import { SearchResults } from './SearchResults'
+import { StatusBar } from './StatusBar'
+import { Toolbar } from './Toolbar'
 
 const root: FolderRef = { id: 'root', name: 'Root', parent: null }
 const reports: FolderRef = { id: 'root/Reports', name: 'Reports', parent: root }
@@ -22,202 +24,183 @@ const file = (parent: FolderRef, name: string): FileSystemEntry => ({
 const folder = (ref: FolderRef): FileSystemEntry => ({ id: ref.id, name: ref.name, kind: 'folder', extension: '', folder: ref })
 
 const listings: Record<string, FileSystemEntry[]> = {
-  root: [
-    file(root, 'Report.pdf'),
-    file(root, 'AnnualReport.xlsx'),
-    file(root, 'photo.jpg'),
-    file(root, 'PHOTO-final.png'),
-    file(root, 'aba.txt'),
-    file(root, 'notes.txt'),
-    folder(reports),
-    folder({ id: 'root/Images', name: 'Images', parent: root }),
-    folder({ id: 'root/ABA-Folder', name: 'ABA-Folder', parent: root }),
-  ],
-  [reports.id]: [file(reports, 'q1.txt'), file(reports, 'repo-notes.txt')],
+  root: [file(root, 'Report.pdf'), file(root, 'photo.jpg'), file(root, 'notes.txt'), folder(reports)],
+  [reports.id]: [file(reports, 'q1.txt'), file(reports, 'report-final.pdf')],
 }
 
-/** קריאות getFile ממתינות עד שהבדיקה משחררת אותן. */
-let pending: Array<{ name: string; resolve: () => void }>
+/** כשה-gate פעיל, קריאות listNames ממתינות עד ש-`release` נקרא (סריקה "בדרך"). */
+let gate: { wait: Promise<void>; release: () => void } | null
+let pickFolder: ReturnType<typeof vi.fn<FileSystemAdapter['pickFolder']>>
 
-const adapter: FileSystemAdapter = {
-  isSupported: () => true,
-  pickFolder: async () => root,
-  listEntries: async (f) => listings[f.id] ?? [],
-  listSubfolders: async () => [],
-  listNames: async () => [],
-  getFile: (entry) =>
-    new Promise<File>((resolve) => {
-      const content = entry.name.endsWith('.jpg') ? jpegWithExif('Canon') : new Uint8Array()
-      pending.push({ name: entry.name, resolve: () => resolve(new File([content as BlobPart], entry.name)) })
-    }),
+function makeAdapter(): FileSystemAdapter {
+  pickFolder = vi.fn<FileSystemAdapter['pickFolder']>(async () => root)
+  return {
+    isSupported: () => true,
+    pickFolder,
+    listEntries: async (f) => listings[f.id] ?? [],
+    listSubfolders: async () => [],
+    listNames: async (f) => {
+      if (gate) await gate.wait
+      return listings[f.id] ?? []
+    },
+    getFile: async (entry) => new File(['x'], entry.name),
+  }
 }
 
 function Harness() {
-  const { actions, location } = useExplorer()
+  const { location, actions } = useExplorer()
   return (
     <>
-      <button type="button" onClick={() => void actions.pickFolder()}>pick</button>
-      <button type="button" onClick={actions.up}>up</button>
+      <Toolbar />
+      <button type="button" onClick={() => actions.openFolder(reports)}>open-reports</button>
+      <button type="button" onClick={() => actions.navigate({ type: 'pc' })}>go-pc</button>
       {location.type === 'folder' && <FileList />}
-      <DetailsPane />
+      {location.type === 'search' && <SearchResults />}
+      <StatusBar />
     </>
   )
 }
 
-const NO_RESULTS = 'אין פריטים התואמים לחיפוש שלך'
-const searchBox = () => screen.getByRole('searchbox', { name: 'חיפוש בתיקייה הנוכחית' }) as HTMLInputElement
-const clearButton = () => screen.queryByRole('button', { name: 'ניקוי החיפוש' })
-const details = () => screen.queryByRole('complementary', { name: 'פרטי קובץ' })
-const visibleNames = () =>
-  within(screen.getByRole('table'))
-    .queryAllByRole('row')
-    .filter((r) => r.hasAttribute('aria-selected'))
-    .map((r) => r.querySelector('.cell-name span')?.textContent)
-const row = (name: string) => within(screen.getByRole('table')).getByText(name)
-const isSelected = (name: string) => row(name).closest('[role="row"]')?.getAttribute('aria-selected')
-
-async function type(text: string) {
-  await act(async () => fireEvent.change(searchBox(), { target: { value: text } }))
-}
-
-/** סדר הרשימה המלאה כפי שהוצגה לפני החיפוש. */
-let ALL: Array<string | null | undefined>
-
-/** הפריטים הצפויים לפי סדר הרשימה המלאה: החיפוש רק מסנן ולא ממיין מחדש. */
-const inListOrder = (...names: string[]) => ALL.filter((n) => names.includes(n as string))
+const searchBox = () => screen.getByRole('searchbox') as HTMLInputElement
+const type = (text: string) => act(() => void fireEvent.change(searchBox(), { target: { value: text } }))
+const advance = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)))
+const listNames = () => within(screen.getByRole('table')).queryAllByRole('row').slice(1)
+/** מרוקן הבטחות ממתינות (הטיימרים מזויפים, ולכן אין waitFor/findBy). */
+const flush = () => act(async () => void (await vi.advanceTimersByTimeAsync(0)))
+const address = () => screen.getByRole('navigation', { name: 'נתיב נוכחי' })
 
 async function openRoot() {
   render(
-    <ExplorerProvider adapter={adapter}>
-      <Harness />
+    <ExplorerProvider adapter={makeAdapter()}>
+      <SearchProvider>
+        <Harness />
+      </SearchProvider>
     </ExplorerProvider>,
   )
-  await act(async () => fireEvent.click(screen.getByText('pick')))
-  await screen.findByText('Report.pdf')
-  ALL = visibleNames()
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'בחירת תיקייה' })))
+  await flush()
+  expect(screen.getByText('Report.pdf')).toBeTruthy()
 }
 
-
 beforeEach(() => {
-  pending = []
-  URL.createObjectURL = vi.fn(() => 'blob:test/1')
-  URL.revokeObjectURL = vi.fn()
+  gate = null
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
 })
 
-afterEach(cleanup)
+afterEach(() => {
+  vi.useRealTimers()
+  cleanup()
+})
 
-describe('search by name in the current folder', () => {
-  it('shows a search field with a placeholder above the list, without a clear button while empty', async () => {
-    await openRoot()
-    const input = searchBox()
-    expect(input.placeholder).toBe('חיפוש לפי שם בתיקייה הנוכחית')
-    expect(input.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(clearButton()).toBeNull()
-    expect(ALL).toHaveLength(listings.root.length)
+describe('search box in the address bar', () => {
+  it('is disabled at home and enabled inside a folder', async () => {
+    render(
+      <ExplorerProvider adapter={makeAdapter()}>
+        <SearchProvider>
+          <Harness />
+        </SearchProvider>
+      </ExplorerProvider>,
+    )
+    expect(searchBox().disabled).toBe(true)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'בחירת תיקייה' })))
+    await flush()
+    expect(searchBox().disabled).toBe(false)
+    await act(async () => fireEvent.click(screen.getByText('go-pc')))
+    expect(searchBox().disabled).toBe(true)
   })
 
-  it('filters while typing, by partial name, keeping the existing order', async () => {
+  it('starts the search only 300ms after the last keystroke and does not filter the folder meanwhile', async () => {
     await openRoot()
-    await type('r')
-    expect(visibleNames()).toEqual(inListOrder('ABA-Folder', 'Reports', 'AnnualReport.xlsx', 'Report.pdf'))
     await type('re')
-    expect(visibleNames()).toEqual(inListOrder('Reports', 'AnnualReport.xlsx', 'Report.pdf'))
+    await advance(200)
+    await type('rep')
+    await advance(200)
+    // עברו 400ms מההקלדה הראשונה אך רק 200ms מהאחרונה: עדיין בתיקייה, בלי סינון.
+    expect(screen.queryByRole('table', { name: 'תוצאות החיפוש' })).toBeNull()
+    expect(listNames().map((r) => r.textContent).join()).toContain('photo.jpg')
+
+    await advance(100)
+    await flush()
+    expect(screen.getByRole('table', { name: 'תוצאות החיפוש' })).toBeTruthy()
+    expect(screen.getByText('3 תוצאות')).toBeTruthy()
+  })
+
+  it('keeps what the user typed after the search started, while typing continues', async () => {
+    await openRoot()
+    await type('rep')
+    await advance(300)
     await type('repo')
-    expect(visibleNames()).toEqual(inListOrder('Reports', 'AnnualReport.xlsx', 'Report.pdf'))
+    await flush()
+    expect(searchBox().value).toBe('repo')
+    await advance(300)
+    await flush()
+    expect(searchBox().value).toBe('repo')
   })
 
-  it('ignores letter case and includes folders', async () => {
+  it('a user navigation cancels a pending search', async () => {
     await openRoot()
-    await type('ABA')
-    expect(visibleNames()).toEqual(inListOrder('ABA-Folder', 'aba.txt'))
-    await type('ima')
-    expect(visibleNames()).toEqual(inListOrder('Images'))
-  })
-
-  it('ignores spaces around the query', async () => {
-    await openRoot()
-    await type('  photo  ')
-    expect(visibleNames()).toEqual(inListOrder('photo.jpg', 'PHOTO-final.png'))
-  })
-
-  it('shows the exact no-results message only when a non-empty query matches nothing', async () => {
-    await openRoot()
-    await type('xyz123')
-    expect(visibleNames()).toEqual([])
-    expect(screen.getByText(NO_RESULTS)).toBeTruthy()
-
-    await type('   ')
-    expect(screen.queryByText(NO_RESULTS)).toBeNull()
-    expect(visibleNames()).toEqual(ALL)
-  })
-
-  it('restores the full list when the text is deleted or X is clicked', async () => {
-    await openRoot()
-    await type('repo')
-    await type('')
-    expect(visibleNames()).toEqual(ALL)
-    expect(clearButton()).toBeNull()
-
-    await type('repo')
-    await act(async () => fireEvent.click(clearButton()!))
+    await type('rep')
+    await advance(100)
+    await act(async () => fireEvent.click(screen.getByText('open-reports')))
+    await advance(500)
+    expect(screen.queryByRole('table', { name: 'תוצאות החיפוש' })).toBeNull()
     expect(searchBox().value).toBe('')
-    expect(visibleNames()).toEqual(ALL)
-    expect(clearButton()).toBeNull()
   })
 
-  it('resets the search when opening a folder and when going up to the parent', async () => {
+  it('expands on focus, shortens the address to "… › folder", and restores on blur', async () => {
     await openRoot()
-    await type('repo')
-    await act(async () => fireEvent.doubleClick(row('Reports')))
-    await screen.findByText('q1.txt')
-    expect(searchBox().value).toBe('')
-    expect(visibleNames()).toEqual(['q1.txt', 'repo-notes.txt'])
+    expect(within(address()).getByText('Root')).toBeTruthy()
+    const box = searchBox().closest('.search-box')!
+    expect(box.classList.contains('search-box--focus')).toBe(false)
 
-    await type('q1')
-    await act(async () => fireEvent.click(screen.getByText('up')))
-    await screen.findByText('Report.pdf')
-    expect(searchBox().value).toBe('')
-    expect(visibleNames()).toEqual(ALL)
+    act(() => void fireEvent.focus(searchBox()))
+    expect(box.classList.contains('search-box--focus')).toBe(true)
+    expect(within(address()).getByText('…')).toBeTruthy()
+    expect(within(address()).getByText('Root')).toBeTruthy()
+
+    act(() => void fireEvent.blur(searchBox()))
+    expect(box.classList.contains('search-box--focus')).toBe(false)
+    expect(within(address()).queryByText('…')).toBeNull()
   })
 
-  it('keeps the selection and details while the selected file still matches', async () => {
+  it('shows no controls at rest; while scanning it shows the count and a stop button', async () => {
+    gate = (() => {
+      let release!: () => void
+      return { wait: new Promise<void>((resolve) => (release = resolve)), release }
+    })()
     await openRoot()
-    await act(async () => fireEvent.click(row('Report.pdf')))
-    expect(details()).not.toBeNull()
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
 
-    await type('REPORT')
-    expect(isSelected('Report.pdf')).toBe('true')
-    expect(within(details()!).getByText('מסמך PDF')).toBeTruthy()
+    await type('rep')
+    await advance(300)
+    expect(screen.getByText('סורק… נמצאו 0')).toBeTruthy()
+    const stop = screen.getByRole('button', { name: 'עצירה' })
+    expect(stop.getAttribute('title')).toBe('עצירה')
+    // הכרזה מנומסת על מעבר המצב בלבד, בלי מספר תוצאות
+    expect(screen.getByRole('status').textContent).toBe('סורק')
+
+    await act(async () => fireEvent.click(stop))
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+    expect(screen.queryByText(/סורק…/)).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe('הסריקה נעצרה, נמצאו 0 תוצאות')
   })
 
-  it('selecting a file from the results works like a regular selection', async () => {
+  it('finishes the scan, hides the controls and announces the result count once', async () => {
     await openRoot()
-    await type('notes')
-    await act(async () => fireEvent.click(row('notes.txt')))
-    expect(isSelected('notes.txt')).toBe('true')
-    expect(within(details()!).getAllByText('notes.txt').length).toBeGreaterThan(0)
+    await type('report')
+    await advance(300)
+    await flush()
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe('הסריקה הסתיימה, נמצאו 3 תוצאות')
   })
+})
 
-  it('clears the selection and details when the selected file is filtered out, ignoring late async data', async () => {
+describe('folder picker icon (FR22 regression)', () => {
+  it('opens the picker and navigates to the chosen folder like the old button', async () => {
     await openRoot()
-    await act(async () => fireEvent.click(row('photo.jpg')))
-    expect(details()).not.toBeNull()
-    // קובצי ה-TXT נקראים ברקע לספירת שורות; כאן רלוונטית רק קריאת התמונה.
-    const photo = pending.filter((p) => p.name === 'photo.jpg')
-    expect(photo).toHaveLength(1)
-
-    await type('repo')
-    expect(details()).toBeNull()
-
-    // נתוני התמונה מגיעים אחרי שהבחירה בוטלה, ואסור שיופיעו.
-    await act(async () => photo[0].resolve())
-    await act(async () => {})
-    expect(details()).toBeNull()
-
-    await type('')
-    expect(details()).toBeNull()
-    expect(isSelected('photo.jpg')).toBe('false')
-    expect(screen.queryByText('Canon')).toBeNull()
-    expect(URL.createObjectURL).not.toHaveBeenCalled()
+    expect(pickFolder).toHaveBeenCalledTimes(1)
+    expect(within(address()).getByText('Root')).toBeTruthy()
+    const button = screen.getByRole('button', { name: 'בחירת תיקייה' })
+    expect(button.getAttribute('title')).toBe('בחירת תיקייה')
   })
 })
