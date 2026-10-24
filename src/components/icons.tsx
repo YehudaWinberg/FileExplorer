@@ -47,6 +47,24 @@ export const SortArrowIcon = (p: IconProps) => (
 export const SearchIcon = (p: IconProps) => (
   <Stroke {...p}><path d="M7 2.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zM10.3 10.3l3.2 3.2" /></Stroke>
 )
+/** שני פסים: השהיית סריקה. */
+export const PauseIcon = ({ size = 12, className }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 12 12" aria-hidden="true">
+    <path d="M2.5 2h2.5v8H2.5zM7 2h2.5v8H7z" fill="currentColor" />
+  </svg>
+)
+/** משולש בצבע accent: המשך סריקה. */
+export const ResumeIcon = ({ size = 12, className }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 12 12" aria-hidden="true">
+    <path d="M3 1.8v8.4L10 6z" fill="var(--accent)" />
+  </svg>
+)
+/** ריבוע מלא: עצירת סריקה. */
+export const StopIcon = ({ size = 12, className }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 12 12" aria-hidden="true">
+    <rect x="2" y="2" width="8" height="8" rx="1" fill="currentColor" />
+  </svg>
+)
 export const CloseIcon = (p: IconProps) => (
   <Stroke {...p}><path d="m4 4 8 8M12 4l-8 8" /></Stroke>
 )

@@ -3,10 +3,13 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FileSystemAdapter } from '../lib/fileSystem'
 import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
-import { jpegWithExif } from '../lib/testFixtures'
 import { ExplorerProvider, useExplorer } from '../state/ExplorerContext'
-import { DetailsPane } from './DetailsPane'
+import { SearchProvider } from '../state/SearchContext'
 import { FileList } from './FileList'
+import { progressPercent } from './SearchBox'
+import { SearchResults } from './SearchResults'
+import { StatusBar } from './StatusBar'
+import { Toolbar } from './Toolbar'
 
 const root: FolderRef = { id: 'root', name: 'Root', parent: null }
 const reports: FolderRef = { id: 'root/Reports', name: 'Reports', parent: root }
@@ -22,201 +25,644 @@ const file = (parent: FolderRef, name: string): FileSystemEntry => ({
 const folder = (ref: FolderRef): FileSystemEntry => ({ id: ref.id, name: ref.name, kind: 'folder', extension: '', folder: ref })
 
 const listings: Record<string, FileSystemEntry[]> = {
-  root: [
-    file(root, 'Report.pdf'),
-    file(root, 'AnnualReport.xlsx'),
-    file(root, 'photo.jpg'),
-    file(root, 'PHOTO-final.png'),
-    file(root, 'aba.txt'),
-    file(root, 'notes.txt'),
-    folder(reports),
-    folder({ id: 'root/Images', name: 'Images', parent: root }),
-    folder({ id: 'root/ABA-Folder', name: 'ABA-Folder', parent: root }),
-  ],
-  [reports.id]: [file(reports, 'q1.txt'), file(reports, 'repo-notes.txt')],
+  root: [file(root, 'Report.pdf'), file(root, 'photo.jpg'), file(root, 'notes.txt'), folder(reports)],
+  [reports.id]: [file(reports, 'q1.txt'), file(reports, 'report-final.pdf')],
 }
 
-/** קריאות getFile ממתינות עד שהבדיקה משחררת אותן. */
-let pending: Array<{ name: string; resolve: () => void }>
+/** כשה-gate פעיל, קריאות listNames ממתינות עד ש-`release` נקרא (סריקה "בדרך"). */
+let gate: { wait: Promise<void>; release: () => void } | null
+let listNamesCalls: string[]
+let heldFolders: Record<string, Promise<void> | undefined>
+const rootScans = () => listNamesCalls.filter((id) => id === 'root').length
+let pickFolder: ReturnType<typeof vi.fn<FileSystemAdapter['pickFolder']>>
 
-const adapter: FileSystemAdapter = {
-  isSupported: () => true,
-  pickFolder: async () => root,
-  listEntries: async (f) => listings[f.id] ?? [],
-  listSubfolders: async () => [],
-  getFile: (entry) =>
-    new Promise<File>((resolve) => {
-      const content = entry.name.endsWith('.jpg') ? jpegWithExif('Canon') : new Uint8Array()
-      pending.push({ name: entry.name, resolve: () => resolve(new File([content as BlobPart], entry.name)) })
-    }),
+function makeAdapter(): FileSystemAdapter {
+  pickFolder = vi.fn<FileSystemAdapter['pickFolder']>(async () => root)
+  return {
+    isSupported: () => true,
+    pickFolder,
+    listEntries: async (f) => listings[f.id] ?? [],
+    listSubfolders: async () => [],
+    listNames: async (f) => {
+      listNamesCalls.push(f.id)
+      if (heldFolders[f.id]) await heldFolders[f.id]
+      if (gate) await gate.wait
+      return listings[f.id] ?? []
+    },
+    getFile: async (entry) => new File(['x'], entry.name),
+  }
 }
 
 function Harness() {
-  const { actions, location } = useExplorer()
+  const { location, actions } = useExplorer()
   return (
     <>
-      <button type="button" onClick={() => void actions.pickFolder()}>pick</button>
-      <button type="button" onClick={actions.up}>up</button>
+      <Toolbar />
+      <button type="button" onClick={() => actions.openFolder(reports)}>open-reports</button>
+      <button type="button" onClick={() => actions.navigate({ type: 'pc' })}>go-pc</button>
       {location.type === 'folder' && <FileList />}
-      <DetailsPane />
+      {location.type === 'search' && <SearchResults />}
+      <StatusBar />
     </>
   )
 }
 
-const NO_RESULTS = 'אין פריטים התואמים לחיפוש שלך'
-const searchBox = () => screen.getByRole('searchbox', { name: 'חיפוש בתיקייה הנוכחית' }) as HTMLInputElement
-const clearButton = () => screen.queryByRole('button', { name: 'ניקוי החיפוש' })
-const details = () => screen.queryByRole('complementary', { name: 'פרטי קובץ' })
-const visibleNames = () =>
-  within(screen.getByRole('table'))
-    .queryAllByRole('row')
-    .filter((r) => r.hasAttribute('aria-selected'))
-    .map((r) => r.querySelector('.cell-name span')?.textContent)
-const row = (name: string) => within(screen.getByRole('table')).getByText(name)
-const isSelected = (name: string) => row(name).closest('[role="row"]')?.getAttribute('aria-selected')
-
-async function type(text: string) {
-  await act(async () => fireEvent.change(searchBox(), { target: { value: text } }))
-}
-
-/** סדר הרשימה המלאה כפי שהוצגה לפני החיפוש. */
-let ALL: Array<string | null | undefined>
-
-/** הפריטים הצפויים לפי סדר הרשימה המלאה: החיפוש רק מסנן ולא ממיין מחדש. */
-const inListOrder = (...names: string[]) => ALL.filter((n) => names.includes(n as string))
+const searchBox = () => screen.getByRole('searchbox') as HTMLInputElement
+const type = (text: string) => act(() => void fireEvent.change(searchBox(), { target: { value: text } }))
+const advance = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)))
+const listNames = () => within(screen.getByRole('table')).queryAllByRole('row').slice(1)
+/** מרוקן הבטחות ממתינות (הטיימרים מזויפים, ולכן אין waitFor/findBy). */
+const flush = () => act(async () => void (await vi.advanceTimersByTimeAsync(0)))
+const address = () => screen.getByRole('navigation', { name: 'נתיב נוכחי' })
 
 async function openRoot() {
   render(
-    <ExplorerProvider adapter={adapter}>
-      <Harness />
+    <ExplorerProvider adapter={makeAdapter()}>
+      <SearchProvider>
+        <Harness />
+      </SearchProvider>
     </ExplorerProvider>,
   )
-  await act(async () => fireEvent.click(screen.getByText('pick')))
-  await screen.findByText('Report.pdf')
-  ALL = visibleNames()
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'בחירת תיקייה' })))
+  await flush()
+  expect(screen.getByText('Report.pdf')).toBeTruthy()
 }
 
-
 beforeEach(() => {
-  pending = []
-  URL.createObjectURL = vi.fn(() => 'blob:test/1')
-  URL.revokeObjectURL = vi.fn()
+  gate = null
+  listNamesCalls = []
+  heldFolders = {}
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
 })
 
-afterEach(cleanup)
+afterEach(() => {
+  vi.useRealTimers()
+  cleanup()
+})
 
-describe('search by name in the current folder', () => {
-  it('shows a search field with a placeholder above the list, without a clear button while empty', async () => {
-    await openRoot()
-    const input = searchBox()
-    expect(input.placeholder).toBe('חיפוש לפי שם בתיקייה הנוכחית')
-    expect(input.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(clearButton()).toBeNull()
-    expect(ALL).toHaveLength(listings.root.length)
+describe('search box in the address bar', () => {
+  it('is disabled at home and enabled inside a folder', async () => {
+    render(
+      <ExplorerProvider adapter={makeAdapter()}>
+        <SearchProvider>
+          <Harness />
+        </SearchProvider>
+      </ExplorerProvider>,
+    )
+    expect(searchBox().disabled).toBe(true)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'בחירת תיקייה' })))
+    await flush()
+    expect(searchBox().disabled).toBe(false)
+    await act(async () => fireEvent.click(screen.getByText('go-pc')))
+    expect(searchBox().disabled).toBe(true)
   })
 
-  it('filters while typing, by partial name, keeping the existing order', async () => {
+  it('starts the search only 300ms after the last keystroke and does not filter the folder meanwhile', async () => {
     await openRoot()
-    await type('r')
-    expect(visibleNames()).toEqual(inListOrder('ABA-Folder', 'Reports', 'AnnualReport.xlsx', 'Report.pdf'))
     await type('re')
-    expect(visibleNames()).toEqual(inListOrder('Reports', 'AnnualReport.xlsx', 'Report.pdf'))
+    await advance(200)
+    await type('rep')
+    await advance(200)
+    // עברו 400ms מההקלדה הראשונה אך רק 200ms מהאחרונה: עדיין בתיקייה, בלי סינון.
+    expect(screen.queryByRole('table', { name: 'תוצאות החיפוש' })).toBeNull()
+    expect(listNames().map((r) => r.textContent).join()).toContain('photo.jpg')
+
+    await advance(100)
+    await flush()
+    expect(screen.getByRole('table', { name: 'תוצאות החיפוש' })).toBeTruthy()
+    expect(screen.getByText('3 תוצאות')).toBeTruthy()
+  })
+
+  it('keeps what the user typed after the search started, while typing continues', async () => {
+    await openRoot()
+    await type('rep')
+    await advance(300)
     await type('repo')
-    expect(visibleNames()).toEqual(inListOrder('Reports', 'AnnualReport.xlsx', 'Report.pdf'))
+    await flush()
+    expect(searchBox().value).toBe('repo')
+    await advance(300)
+    await flush()
+    expect(searchBox().value).toBe('repo')
   })
 
-  it('ignores letter case and includes folders', async () => {
+  it('a user navigation cancels a pending search', async () => {
     await openRoot()
-    await type('ABA')
-    expect(visibleNames()).toEqual(inListOrder('ABA-Folder', 'aba.txt'))
-    await type('ima')
-    expect(visibleNames()).toEqual(inListOrder('Images'))
+    await type('rep')
+    await advance(100)
+    await act(async () => fireEvent.click(screen.getByText('open-reports')))
+    await advance(500)
+    expect(screen.queryByRole('table', { name: 'תוצאות החיפוש' })).toBeNull()
+    expect(searchBox().value).toBe('')
   })
 
-  it('ignores spaces around the query', async () => {
+  it('expands on focus, shortens the address to "… › folder", and restores on blur', async () => {
     await openRoot()
-    await type('  photo  ')
-    expect(visibleNames()).toEqual(inListOrder('photo.jpg', 'PHOTO-final.png'))
+    expect(within(address()).getByText('Root')).toBeTruthy()
+    const box = searchBox().closest('.search-box')!
+    expect(box.classList.contains('search-box--focus')).toBe(false)
+
+    act(() => void fireEvent.focus(searchBox()))
+    expect(box.classList.contains('search-box--focus')).toBe(true)
+    expect(within(address()).getByText('…')).toBeTruthy()
+    expect(within(address()).getByText('Root')).toBeTruthy()
+
+    act(() => void fireEvent.blur(searchBox()))
+    expect(box.classList.contains('search-box--focus')).toBe(false)
+    expect(within(address()).queryByText('…')).toBeNull()
   })
 
-  it('shows the exact no-results message only when a non-empty query matches nothing', async () => {
+  it('shows no controls at rest; while scanning it shows the count and a stop button', async () => {
+    gate = (() => {
+      let release!: () => void
+      return { wait: new Promise<void>((resolve) => (release = resolve)), release }
+    })()
     await openRoot()
-    await type('xyz123')
-    expect(visibleNames()).toEqual([])
-    expect(screen.getByText(NO_RESULTS)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
 
-    await type('   ')
-    expect(screen.queryByText(NO_RESULTS)).toBeNull()
-    expect(visibleNames()).toEqual(ALL)
+    await type('rep')
+    await advance(300)
+    expect(screen.getByText('סורק… נמצאו 0')).toBeTruthy()
+    const stop = screen.getByRole('button', { name: 'עצירה' })
+    expect(stop.getAttribute('title')).toBe('עצירה')
+    // הכרזה מנומסת על מעבר המצב בלבד, בלי מספר תוצאות
+    expect(screen.getByRole('status').textContent).toBe('סורק')
+
+    await act(async () => fireEvent.click(stop))
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+    expect(screen.queryByText(/סורק…/)).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe('הסריקה נעצרה, נמצאו 0 תוצאות')
   })
 
-  it('restores the full list when the text is deleted or X is clicked', async () => {
+  it('finishes the scan, hides the controls and announces the result count once', async () => {
     await openRoot()
-    await type('repo')
+    await type('report')
+    await advance(300)
+    await flush()
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe('הסריקה הסתיימה, נמצאו 3 תוצאות')
+  })
+})
+
+describe('folder picker icon (FR22 regression)', () => {
+  it('opens the picker and navigates to the chosen folder like the old button', async () => {
+    await openRoot()
+    expect(pickFolder).toHaveBeenCalledTimes(1)
+    expect(within(address()).getByText('Root')).toBeTruthy()
+    const button = screen.getByRole('button', { name: 'בחירת תיקייה' })
+    expect(button.getAttribute('title')).toBe('בחירת תיקייה')
+  })
+})
+
+const resultNames = () =>
+  within(screen.getByRole('table', { name: 'תוצאות החיפוש' }))
+    .getAllByRole('row')
+    .slice(1)
+    .map((r) => r.querySelector('.ellipsis')?.textContent)
+const inResults = () => screen.queryByRole('table', { name: 'תוצאות החיפוש' })
+
+async function searchFor(text: string) {
+  await type(text)
+  await advance(300)
+  await flush()
+}
+
+describe('leaving the results (FR21)', () => {
+  it('clearing the box returns to the root folder of the search and clears the session', async () => {
+    await openRoot()
+    await act(async () => fireEvent.click(screen.getByText('open-reports')))
+    await searchFor('q1')
+    expect(resultNames()).toEqual(['q1.txt'])
+
     await type('')
-    expect(visibleNames()).toEqual(ALL)
-    expect(clearButton()).toBeNull()
-
-    await type('repo')
-    await act(async () => fireEvent.click(clearButton()!))
-    expect(searchBox().value).toBe('')
-    expect(visibleNames()).toEqual(ALL)
-    expect(clearButton()).toBeNull()
+    await flush()
+    expect(inResults()).toBeNull()
+    expect(within(address()).getByText('Reports')).toBeTruthy()
+    expect(screen.getByRole('table', { name: 'תוכן התיקייה' })).toBeTruthy()
+    expect(screen.queryByText(/תוצאות$/)).toBeNull()
   })
 
-  it('resets the search when opening a folder and when going up to the parent', async () => {
+  it('up from results goes to the search root; refresh re-runs the search', async () => {
     await openRoot()
-    await type('repo')
-    await act(async () => fireEvent.doubleClick(row('Reports')))
-    await screen.findByText('q1.txt')
-    expect(searchBox().value).toBe('')
-    expect(visibleNames()).toEqual(['q1.txt', 'repo-notes.txt'])
+    await searchFor('report')
+    expect(resultNames()).toHaveLength(3)
 
-    await type('q1')
-    await act(async () => fireEvent.click(screen.getByText('up')))
-    await screen.findByText('Report.pdf')
-    expect(searchBox().value).toBe('')
-    expect(visibleNames()).toEqual(ALL)
+    const scansBefore = rootScans()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'רענון' })))
+    await flush()
+    expect(resultNames()).toHaveLength(3)
+    expect(rootScans()).toBe(scansBefore + 1)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'תיקיית אב' })))
+    expect(inResults()).toBeNull()
+    expect(screen.getByRole('table', { name: 'תוכן התיקייה' })).toBeTruthy()
   })
 
-  it('keeps the selection and details while the selected file still matches', async () => {
+  it.each([
+    ['clicking a breadcrumb', () => fireEvent.click(within(address()).getByText('Root'))],
+    ['picking a folder', () => fireEvent.click(screen.getByRole('button', { name: 'בחירת תיקייה' }))],
+    ['going to another place', () => fireEvent.click(screen.getByText('go-pc'))],
+  ])('%s during an active scan aborts it and leaves no stale results', async (_name, navigate) => {
+    let release!: () => void
     await openRoot()
-    await act(async () => fireEvent.click(row('Report.pdf')))
-    expect(details()).not.toBeNull()
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+    await searchFor('report')
+    expect(screen.getByRole('button', { name: 'עצירה' })).toBeTruthy()
 
-    await type('REPORT')
-    expect(isSelected('Report.pdf')).toBe('true')
-    expect(within(details()!).getByText('מסמך PDF')).toBeTruthy()
+    await act(async () => void navigate())
+    await act(async () => {
+      release()
+      await gate!.wait
+    })
+    await flush()
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+    expect(inResults()).toBeNull()
+    expect(screen.queryByText(/נמצאו/)).toBeNull()
   })
 
-  it('selecting a file from the results works like a regular selection', async () => {
+  it('a plain name the old filter would find also appears in the search results (FR22)', async () => {
     await openRoot()
-    await type('notes')
-    await act(async () => fireEvent.click(row('notes.txt')))
-    expect(isSelected('notes.txt')).toBe('true')
-    expect(within(details()!).getAllByText('notes.txt').length).toBeGreaterThan(0)
+    await searchFor('photo')
+    expect(resultNames()).toEqual(['photo.jpg'])
+    await searchFor('notes.txt')
+    expect(resultNames()).toEqual(['notes.txt'])
+  })
+})
+
+
+describe('pause and resume controls (2.1)', () => {
+  function holdAll() {
+    let release!: () => void
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+  }
+
+  it('shows pause next to stop while scanning; paused shows text, a resume button and stop', async () => {
+    holdAll()
+    await openRoot()
+    await searchFor('rep')
+    expect(screen.getByRole('button', { name: 'השהיה' }).getAttribute('title')).toBe('השהיה')
+    expect(screen.getByRole('button', { name: 'עצירה' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'המשך' })).toBeNull()
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'השהיה' })))
+    expect(screen.getByText('מושהה — נמצאו 0')).toBeTruthy()
+    expect(searchBox().closest('.search-box')!.classList.contains('search-box--paused')).toBe(true)
+    expect(screen.getByRole('button', { name: 'המשך' }).getAttribute('title')).toBe('המשך')
+    expect(screen.getByRole('button', { name: 'עצירה' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'השהיה' })).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe('הסריקה מושהית')
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'המשך' })))
+    expect(screen.getByText('סורק… נמצאו 0')).toBeTruthy()
+    expect(searchBox().closest('.search-box')!.classList.contains('search-box--paused')).toBe(false)
   })
 
-  it('clears the selection and details when the selected file is filtered out, ignoring late async data', async () => {
+  it('stopping from paused ends the scan and hides every control', async () => {
+    holdAll()
     await openRoot()
-    await act(async () => fireEvent.click(row('photo.jpg')))
-    expect(details()).not.toBeNull()
-    // קובצי ה-TXT נקראים ברקע לספירת שורות; כאן רלוונטית רק קריאת התמונה.
-    const photo = pending.filter((p) => p.name === 'photo.jpg')
-    expect(photo).toHaveLength(1)
+    await searchFor('rep')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'השהיה' })))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'עצירה' })))
+    expect(screen.queryByRole('button', { name: 'המשך' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+    expect(screen.queryByText(/מושהה/)).toBeNull()
+  })
+})
 
-    await type('repo')
-    expect(details()).toBeNull()
 
-    // נתוני התמונה מגיעים אחרי שהבחירה בוטלה, ואסור שיופיעו.
-    await act(async () => photo[0].resolve())
-    await act(async () => {})
-    expect(details()).toBeNull()
+describe('scan progress bar (2.2)', () => {
+  const fill = () => document.querySelector<HTMLElement>('.scan-progress__fill')
+  const holdAll = () => {
+    let release!: () => void
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+  }
 
-    await type('')
-    expect(details()).toBeNull()
-    expect(isSelected('photo.jpg')).toBe('false')
-    expect(screen.queryByText('Canon')).toBeNull()
-    expect(URL.createObjectURL).not.toHaveBeenCalled()
+  it('computes the width as count / 500, capped at 100%, and 100% when done', () => {
+    expect(progressPercent('scanning', 0)).toBe(0)
+    expect(progressPercent('scanning', 250)).toBe(50)
+    expect(progressPercent('paused', 125)).toBe(25)
+    expect(progressPercent('stopped', 100)).toBe(20)
+    expect(progressPercent('scanning', 900)).toBe(100)
+    expect(progressPercent('done', 3)).toBe(100)
+  })
+
+  it('has no bar at rest and is decorative only (aria-hidden)', async () => {
+    holdAll()
+    await openRoot()
+    expect(fill()).toBeNull()
+    await searchFor('rep')
+    expect(fill()).not.toBeNull()
+    expect(fill()!.closest('.scan-progress')!.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('is blue while scanning, frozen orange when paused and blue again on resume', async () => {
+    holdAll()
+    await openRoot()
+    await searchFor('rep')
+    expect(fill()!.style.width).toBe('0%')
+    expect(fill()!.classList.contains('scan-progress__fill--paused')).toBe(false)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'השהיה' })))
+    expect(fill()!.classList.contains('scan-progress__fill--paused')).toBe(true)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'המשך' })))
+    expect(fill()!.classList.contains('scan-progress__fill--paused')).toBe(false)
+  })
+
+  it('jumps to 100% when the scan finishes with fewer than 500 results and stays blue', async () => {
+    await openRoot()
+    await searchFor('report')
+    expect(fill()!.style.width).toBe('100%')
+    expect(fill()!.classList.contains('scan-progress__fill--paused')).toBe(false)
+  })
+
+  it('stays at its current width after a manual stop, and disappears when leaving the search', async () => {
+    holdAll()
+    await openRoot()
+    await searchFor('rep')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'עצירה' })))
+    expect(fill()!.style.width).toBe('0%')
+
+    await act(async () => fireEvent.click(screen.getByText('go-pc')))
+    expect(fill()).toBeNull()
+  })
+})
+
+describe('stop and cap messages (2.3)', () => {
+  it('shows the stopped message instead of "no results" when stopped with nothing found', async () => {
+    let release!: () => void
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+    await openRoot()
+    await searchFor('rep')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'עצירה' })))
+    expect(document.querySelector('.empty__title')!.textContent).toBe('הסריקה הופסקה — ייתכנו תוצאות נוספות')
+    expect(screen.queryByText('לא נמצאו תוצאות')).toBeNull()
+  })
+
+  it('caps at 500 results with the message, keeps the results and fills the bar', async () => {
+    const original = listings.root
+    listings.root = [file(root, 'Report.pdf'), ...Array.from({ length: 600 }, (_, i) => file(root, `cap${i}.txt`))]
+    try {
+      await openRoot()
+      await searchFor('cap')
+      expect(document.querySelector('.results-notice')!.textContent).toBe('הוצגו 500 תוצאות — יש עוד. צמצמו את החיפוש')
+      expect(screen.getByRole('status').textContent).toBe('הוצגו 500 תוצאות — יש עוד. צמצמו את החיפוש')
+      expect(within(screen.getByRole('table', { name: 'תוצאות החיפוש' })).getAllByRole('row')).toHaveLength(501)
+      expect(document.querySelector<HTMLElement>('.scan-progress__fill')!.style.width).toBe('100%')
+      expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+      expect(screen.getByText('500 תוצאות')).toBeTruthy()
+    } finally {
+      listings.root = original
+    }
+  })
+})
+
+
+describe('sort by proximity (3.3)', () => {
+  const sortButton = () => screen.getByRole('button', { name: 'מיון לפי קרבה' }) as HTMLButtonElement
+  const names = () => resultNames()
+
+  async function withListings(run: () => Promise<void>) {
+    const original = [listings.root, listings[reports.id]]
+    listings.root = [file(root, 'Report.pdf'), file(root, 'abcdef.txt'), folder(reports)]
+    listings[reports.id] = [file(reports, 'abc.txt')]
+    try {
+      await run()
+    } finally {
+      ;[listings.root, listings[reports.id]] = original
+    }
+  }
+
+  it('is always visible; disabled with a hint while scanning and for an empty session', async () => {
+    let release!: () => void
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+    await openRoot()
+    await searchFor('rep')
+    expect(sortButton().disabled).toBe(true)
+    expect(sortButton().getAttribute('title')).toBe('המיון יהיה זמין בסיום הסריקה')
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'עצירה' })))
+    expect(sortButton().disabled).toBe(true) // סשן ריק
+  })
+
+  it('stays in arrival order until clicked; then sorts by score, keeps the underline and does not auto-resort', async () => {
+    await withListings(async () => {
+      await openRoot()
+      await searchFor('abc')
+      expect(names()).toEqual(['abcdef.txt', 'abc.txt'])
+      expect(sortButton().disabled).toBe(false)
+      expect(sortButton().classList.contains('sort-button--active')).toBe(false)
+
+      await act(async () => fireEvent.click(sortButton()))
+      expect(names()).toEqual(['abc.txt', 'abcdef.txt'])
+      expect(sortButton().classList.contains('sort-button--active')).toBe(true)
+      expect(sortButton().getAttribute('aria-pressed')).toBe('true')
+    })
+  })
+
+  it('stays visible and disabled on the "no results" screen', async () => {
+    await openRoot()
+    await searchFor('zzz')
+    expect(screen.getByText('לא נמצאו תוצאות')).toBeTruthy()
+    expect(sortButton().disabled).toBe(true)
+  })
+})
+
+
+describe('choice dialog and go to location (4.2)', () => {
+  const dialog = () => screen.queryByRole('dialog', { name: 'בחירת פעולה לתוצאה' })
+  const resultRow = (name: string) =>
+    within(screen.getByRole('table', { name: 'תוצאות החיפוש' }))
+      .getAllByRole('row')
+      .find((r) => r.querySelector('.ellipsis')?.textContent === name)!
+
+  async function openResults() {
+    await openRoot()
+    await searchFor('report')
+  }
+
+  it('double click on a file offers preview and go-to-location; a folder only go-to-location', async () => {
+    await openResults()
+    await act(async () => fireEvent.doubleClick(resultRow('report-final.pdf')))
+    expect(within(dialog()!).getByRole('button', { name: 'תצוגה מקדימה' })).toBeTruthy()
+    expect(within(dialog()!).getByRole('button', { name: 'מעבר למיקום' })).toBeTruthy()
+
+    act(() => void fireEvent.keyDown(document, { key: 'Escape' }))
+    expect(dialog()).toBeNull()
+
+    await act(async () => fireEvent.doubleClick(resultRow('Reports')))
+    expect(within(dialog()!).queryByRole('button', { name: 'תצוגה מקדימה' })).toBeNull()
+    expect(within(dialog()!).getByRole('button', { name: 'מעבר למיקום' })).toBeTruthy()
+  })
+
+  it('closes on Escape and on a click outside', async () => {
+    await openResults()
+    await act(async () => fireEvent.doubleClick(resultRow('Report.pdf')))
+    expect(dialog()).not.toBeNull()
+    act(() => void fireEvent.mouseDown(document.body))
+    expect(dialog()).toBeNull()
+  })
+
+  it('"preview" closes the dialog and selects the result', async () => {
+    await openResults()
+    await act(async () => fireEvent.doubleClick(resultRow('Report.pdf')))
+    await act(async () => fireEvent.click(within(dialog()!).getByRole('button', { name: 'תצוגה מקדימה' })))
+    expect(dialog()).toBeNull()
+    expect(resultRow('Report.pdf').getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('"go to location" shows the file folder with the file selected, keeping the search session', async () => {
+    await openResults()
+    await act(async () => fireEvent.doubleClick(resultRow('report-final.pdf')))
+    await act(async () => fireEvent.click(within(dialog()!).getByRole('button', { name: 'מעבר למיקום' })))
+    await flush()
+
+    expect(inResults()).toBeNull()
+    expect(within(address()).getByText('Reports')).toBeTruthy()
+    const list = screen.getByRole('table', { name: 'תוכן התיקייה' })
+    const selectedRow = within(list).getAllByRole('row').find((r) => r.getAttribute('aria-selected') === 'true')!
+    expect(selectedRow.textContent).toContain('report-final.pdf')
+
+    // אחורה (4.3) חוזר לתוצאות אותו סשן: הסשן לא נוקה במעבר
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'חזרה' })))
+    await flush()
+    expect(resultNames()).toEqual(['Report.pdf', 'Reports', 'report-final.pdf'])
+  })
+})
+
+describe('return to the results (4.3)', () => {
+  const resultRow = (name: string) =>
+    within(screen.getByRole('table', { name: 'תוצאות החיפוש' }))
+      .getAllByRole('row')
+      .find((r) => r.querySelector('.ellipsis')?.textContent === name)!
+  const back = () => act(async () => void fireEvent.click(screen.getByRole('button', { name: 'חזרה' })))
+
+  it('UJ-1: search, select, double click, go to location, back returns to the same results without rescanning', async () => {
+    await openRoot()
+    await searchFor('report')
+    const scans = listNamesCalls.length
+    const before = resultNames()
+    expect(before).toEqual(['Report.pdf', 'Reports', 'report-final.pdf'])
+
+    await act(async () => fireEvent.click(resultRow('report-final.pdf')))
+    expect(resultRow('report-final.pdf').getAttribute('aria-selected')).toBe('true')
+    await act(async () => fireEvent.doubleClick(resultRow('report-final.pdf')))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'מעבר למיקום' })))
+    await flush()
+    expect(within(address()).getByText('Reports')).toBeTruthy()
+
+    await back()
+    await flush()
+    // לא לתיקייה הקודמת אלא לאותן תוצאות ואותו דפוס, בלי סריקה חדשה
+    expect(resultNames()).toEqual(before)
+    expect(searchBox().value).toBe('report')
+    expect(listNamesCalls).toHaveLength(scans)
+    expect(screen.getByRole('status').textContent).toBe('הסריקה הסתיימה, נמצאו 3 תוצאות')
+  })
+
+  it('a scan paused by the move comes back as "paused" and can be resumed to completion', async () => {
+    let release!: () => void
+    heldFolders[reports.id] = new Promise<void>((resolve) => (release = resolve))
+    await openRoot()
+    await searchFor('report')
+    expect(resultNames()).toEqual(['Report.pdf', 'Reports'])
+
+    await act(async () => fireEvent.doubleClick(resultRow('Reports')))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'מעבר למיקום' })))
+    await flush()
+    await back()
+    await flush()
+    expect(screen.getByText('מושהה — נמצאו 2')).toBeTruthy()
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'המשך' })))
+    await act(async () => {
+      release()
+      await heldFolders[reports.id]
+    })
+    await flush()
+    expect(resultNames()).toEqual(['Report.pdf', 'Reports', 'report-final.pdf'])
+    expect(listNamesCalls.filter((id) => id === root.id)).toHaveLength(1)
+  })
+
+  it('user navigation clears the saved session, so back/forward never revive stale results', async () => {
+    await openRoot()
+    await searchFor('report')
+    await act(async () => fireEvent.click(screen.getByText('open-reports')))
+    expect(inResults()).toBeNull()
+    await back()
+    await flush()
+    // חזרה אל מיקום החיפוש אחרי ניווט משתמש: סשן חדש לאותו דפוס, לא תוצאות ישנות
+    expect(screen.getByRole('table', { name: 'תוצאות החיפוש' })).toBeTruthy()
+    expect(listNamesCalls.filter((id) => id === root.id).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('a new search replaces the record: back reaches the folder and forward the new search only', async () => {
+    await openRoot()
+    await searchFor('report')
+    await searchFor('photo')
+    expect(resultNames()).toEqual(['photo.jpg'])
+    await back()
+    await flush()
+    expect(within(address()).getByText('Root')).toBeTruthy()
+    expect(inResults()).toBeNull()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'קדימה' })))
+    await flush()
+    expect(resultNames()).toEqual(['photo.jpg'])
+  })
+})
+
+
+describe('review patches', () => {
+  it('folder mode: the type filter narrows the rows and the status bar summary', async () => {
+    await openRoot()
+    const rowCount = () => within(screen.getByRole('table', { name: 'תוכן התיקייה' })).getAllByRole('row').length - 1
+    const total = rowCount()
+    expect(total).toBe(4)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'סינון לפי סוג' })))
+    await act(async () => fireEvent.click(screen.getByLabelText('מסמך PDF')))
+    expect(rowCount()).toBe(1)
+    expect(screen.getByText('1 פריטים מוצגים')).toBeTruthy()
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'נקה סינון' })))
+    expect(rowCount()).toBe(total)
+    expect(screen.getByText('4 פריטים מוצגים')).toBeTruthy()
+  })
+
+  it('a pending search is cancelled when going back to another folder', async () => {
+    await openRoot()
+    await act(async () => fireEvent.click(screen.getByText('open-reports')))
+    await flush()
+    await type('rep')
+    await advance(100)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'חזרה' })))
+    await advance(500)
+    await flush()
+    expect(screen.queryByRole('table', { name: 'תוצאות החיפוש' })).toBeNull()
+    expect(within(address()).getByText('Root')).toBeTruthy()
+  })
+
+  it('only rows that arrive during a scan are animated; rows shown after it finished are not', async () => {
+    let release!: () => void
+    heldFolders[reports.id] = new Promise<void>((resolve) => (release = resolve))
+    await openRoot()
+    await searchFor('report')
+    const animated = () => document.querySelectorAll('.result-row--new:not(.result-row--header)').length
+    expect(animated()).toBe(2)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'השהיה' })))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'המשך' })))
+    await act(async () => {
+      release()
+      await heldFolders[reports.id]
+    })
+    await flush()
+    expect(resultNames()).toHaveLength(3)
+
+    await act(async () => fireEvent.doubleClick(within(screen.getByRole('table', { name: 'תוצאות החיפוש' })).getAllByRole('row')[1]))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'מעבר למיקום' })))
+    await flush()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'חזרה' })))
+    await flush()
+    expect(animated()).toBe(0)
   })
 })

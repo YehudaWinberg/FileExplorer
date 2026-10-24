@@ -57,6 +57,7 @@ const adapter: FileSystemAdapter = {
   pickFolder: async () => root,
   listEntries: async () => listing,
   listSubfolders: async () => [],
+  listNames: async () => [],
   getFile: (entry) =>
     new Promise<File>((resolve, reject) => {
       const file = entry.name === 'Big.pdf' ? gatedFile(entry.name) : plainFile(entry.name)

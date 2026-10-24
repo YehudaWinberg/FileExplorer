@@ -6,7 +6,6 @@ import {
   type SpecialFolderKey,
 } from '../lib/models/entry'
 import type { SortKey, SortState } from '../lib/models/sort'
-import { matchesName } from '../lib/utils/nameSearch'
 
 export type LoadStatus = 'idle' | 'loading' | 'error'
 
@@ -25,8 +24,6 @@ export interface ExplorerState {
   sort: SortState
   /** תוויות סוג נבחרות לסינון; ריק = ללא סינון. */
   typeFilter: string[]
-  /** מחרוזת החיפוש לפי שם בתיקייה הנוכחית; ריק = ללא סינון. */
-  searchQuery: string
   expanded: Record<string, boolean>
   children: Record<string, FolderRef[]>
   treeErrors: Record<string, string>
@@ -46,7 +43,6 @@ export const initialState: ExplorerState = {
   anchor: null,
   sort: { key: 'name', direction: 'asc' },
   typeFilter: [],
-  searchQuery: '',
   expanded: {},
   children: {},
   treeErrors: {},
@@ -55,7 +51,8 @@ export const initialState: ExplorerState = {
 
 export type ExplorerAction =
   | { type: 'picked'; folder: FolderRef; special?: SpecialFolderKey }
-  | { type: 'navigate'; location: Location }
+  /** `replace`: מחליף את הרשומה הנוכחית (וחותך forward) במקום להוסיף רשומה. */
+  | { type: 'navigate'; location: Location; replace?: boolean; select?: string }
   | { type: 'back' }
   | { type: 'forward' }
   | { type: 'refresh' }
@@ -67,7 +64,6 @@ export type ExplorerAction =
   | { type: 'sort'; key: SortKey }
   | { type: 'toggleTypeFilter'; label: string }
   | { type: 'clearTypeFilter' }
-  | { type: 'search'; query: string }
   | { type: 'expand'; ids: string[] }
   | { type: 'toggleExpand'; id: string }
   | { type: 'childrenLoaded'; id: string; children: FolderRef[] }
@@ -78,16 +74,15 @@ export function currentLocation(state: ExplorerState): Location {
 }
 
 /** מצב טעינה/איפוס עבור המיקום שאליו עוברים. */
-function enter(state: ExplorerState, index: number): ExplorerState {
+function enter(state: ExplorerState, index: number, select?: string): ExplorerState {
   const isFolder = state.history[index].type === 'folder'
   return {
     ...state,
     index,
     entries: [],
-    selection: [],
-    anchor: null,
+    selection: select ? [select] : [],
+    anchor: select ?? null,
     typeFilter: [],
-    searchQuery: '',
     error: null,
     status: isFolder ? 'loading' : 'idle',
   }
@@ -128,8 +123,9 @@ export function explorerReducer(state: ExplorerState, action: ExplorerAction): E
     }
     case 'navigate': {
       if (sameLocation(currentLocation(state), action.location)) return state
-      const history = [...state.history.slice(0, state.index + 1), action.location]
-      return enter({ ...state, history }, history.length - 1)
+      const keep = action.replace ? state.index : state.index + 1
+      const history = [...state.history.slice(0, keep), action.location]
+      return enter({ ...state, history }, history.length - 1, action.select)
     }
     case 'back':
       return state.index > 0 ? enter(state, state.index - 1) : state
@@ -169,17 +165,6 @@ export function explorerReducer(state: ExplorerState, action: ExplorerAction): E
       }
     case 'clearTypeFilter':
       return state.typeFilter.length ? { ...state, typeFilter: [] } : state
-    case 'search': {
-      // פריטים נבחרים שאינם מופיעים עוד בתוצאות החיפוש יוצאים מהבחירה.
-      const visible = new Set(state.entries.filter((e) => matchesName(e, action.query)).map((e) => e.id))
-      const selection = state.selection.filter((id) => visible.has(id))
-      return {
-        ...state,
-        searchQuery: action.query,
-        selection: selection.length === state.selection.length ? state.selection : selection,
-        anchor: state.anchor && visible.has(state.anchor) ? state.anchor : null,
-      }
-    }
     case 'expand': {
       const expanded = { ...state.expanded }
       for (const id of action.ids) expanded[id] = true

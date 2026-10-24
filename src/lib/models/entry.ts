@@ -32,10 +32,19 @@ export type Location =
   | { type: 'pc' }
   | { type: 'quick' }
   | { type: 'folder'; folder: FolderRef }
+  | { type: 'search'; root: FolderRef; pattern: string }
+
+/** דפוס חיפוש להשוואה: ללא רווחים בקצוות וללא הבדל בין אותיות גדולות לקטנות. */
+export function normalizePattern(pattern: string): string {
+  return pattern.trim().toLowerCase()
+}
 
 export function sameLocation(a: Location, b: Location): boolean {
-  if (a.type !== b.type) return false
-  return a.type === 'folder' && b.type === 'folder' ? a.folder.id === b.folder.id : true
+  if (a.type === 'folder' && b.type === 'folder') return a.folder.id === b.folder.id
+  if (a.type === 'search' && b.type === 'search') {
+    return a.root.id === b.root.id && normalizePattern(a.pattern) === normalizePattern(b.pattern)
+  }
+  return a.type === b.type && a.type !== 'folder' && a.type !== 'search'
 }
 
 /** שרשרת התיקיות מהשורש ועד התיקייה (כולל). */

@@ -1,6 +1,7 @@
 import { DetailsPane } from './components/DetailsPane'
 import { FileList } from './components/FileList'
 import { PlacesView } from './components/PlacesView'
+import { SearchResults } from './components/SearchResults'
 import { Sidebar } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
 import { TitleBar } from './components/TitleBar'
@@ -26,7 +27,9 @@ export default function App() {
       <div className="body">
         <Sidebar />
         <main className="content">
-          {location.type === 'folder' ? <FileList /> : <PlacesView mode={location.type} />}
+          {location.type === 'folder' && <FileList />}
+          {location.type === 'search' && <SearchResults />}
+          {location.type !== 'folder' && location.type !== 'search' && <PlacesView mode={location.type} />}
         </main>
         <DetailsPane />
       </div>

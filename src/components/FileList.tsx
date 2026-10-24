@@ -6,10 +6,9 @@ import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
 import { formatCount, formatDate, formatElapsedDays, formatSize } from '../lib/utils/format'
 import { SCALE_GRADIENT, isLargeFile, scaleColor, sizeScalePosition } from '../lib/utils/largeFiles'
 import { sortEntries } from '../lib/utils/sortEntries'
-import { filterByName, normalizeQuery } from '../lib/utils/nameSearch'
 import { filterByTypes, getTypeOptions } from '../lib/utils/typeFilter'
 import { EmptyState } from './EmptyState'
-import { CloseIcon, FileKindIcon, FilterIcon, SearchIcon, SortArrowIcon } from './icons'
+import { FileKindIcon, FilterIcon, SortArrowIcon } from './icons'
 import { useLineCounts, type LineCount } from './useLineCounts'
 
 const COLUMNS: Array<{ key: SortKey; label: string; className: string }> = [
@@ -165,38 +164,10 @@ function TypeHeader({ label, className, sortState, onSort, options, selected, on
   )
 }
 
-const SEARCH_LABEL = 'חיפוש בתיקייה הנוכחית'
-const NO_SEARCH_RESULTS = 'אין פריטים התואמים לחיפוש שלך'
-
-function SearchBox({ query, onChange }: { query: string; onChange: (query: string) => void }) {
-  return (
-    <div className="search-bar">
-      <div className="search-box">
-        <SearchIcon size={14} className="search-box__icon" />
-        <input
-          type="search"
-          className="search-box__input"
-          placeholder="חיפוש לפי שם בתיקייה הנוכחית"
-          aria-label={SEARCH_LABEL}
-          value={query}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        {query !== '' && (
-          <button type="button" className="search-box__clear" aria-label="ניקוי החיפוש" title="ניקוי החיפוש" onClick={() => onChange('')}>
-            <CloseIcon size={12} />
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
 export function FileList() {
   const { state, actions } = useExplorer()
   const typeOptions = useMemo(() => getTypeOptions(state.entries), [state.entries])
-  const searched = useMemo(() => filterByName(state.entries, state.searchQuery), [state.entries, state.searchQuery])
-  const filtered = useMemo(() => filterByTypes(searched, state.typeFilter), [searched, state.typeFilter])
-  const searching = normalizeQuery(state.searchQuery) !== ''
+  const filtered = useMemo(() => filterByTypes(state.entries, state.typeFilter), [state.entries, state.typeFilter])
   const sorted = useMemo(() => sortEntries(filtered, state.sort), [filtered, state.sort])
   const orderedIds = useMemo(() => sorted.map((e) => e.id), [sorted])
   const selected = useMemo(() => new Set(state.selection), [state.selection])
@@ -209,7 +180,6 @@ export function FileList() {
 
   return (
     <div className="file-view">
-      <SearchBox query={state.searchQuery} onChange={actions.search} />
       <div className="file-view__scroll">
         <div className="list" role="table" aria-label="תוכן התיקייה" onClick={actions.clearSelection}>
           <div role="row" className="row row--header" onClick={(e) => e.stopPropagation()}>
@@ -253,11 +223,7 @@ export function FileList() {
             <div role="columnheader" className="col-large header-static">{LARGE_FILES_LABEL}</div>
           </div>
           {sorted.length === 0 ? (
-            <EmptyState
-              title={
-                searching ? NO_SEARCH_RESULTS : state.typeFilter.length ? 'אין פריטים התואמים לסינון' : 'התיקייה הזו ריקה'
-              }
-            />
+            <EmptyState title={state.typeFilter.length ? 'אין פריטים התואמים לסינון' : 'התיקייה הזו ריקה'} />
           ) : (
             sorted.map((entry) => (
               <Row

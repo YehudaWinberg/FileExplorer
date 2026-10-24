@@ -175,6 +175,45 @@ describe('listEntries / listSubfolders', () => {
   })
 })
 
+describe('listNames', () => {
+  it('lists name, kind and id only, without reading files', async () => {
+    const { adapter, folder } = await pick()
+    const entries = await adapter.listNames(folder)
+    expect(entries.map((e) => e.name)).toEqual(['2026', 'notes.txt', 'locked.bin', 'empty'])
+    expect(entries[0]).toMatchObject({ kind: 'folder', id: `${folder.id}/2026` })
+    expect(entries[1]).toMatchObject({ kind: 'file', extension: 'txt', id: `${folder.id}/notes.txt` })
+    // locked.bin נכשל ב-getFile, ובכל זאת מופיע: הקובץ לא נקרא.
+    expect(entries[2]).not.toHaveProperty('unreadable')
+    for (const entry of entries) {
+      expect(entry).not.toHaveProperty('size')
+      expect(entry).not.toHaveProperty('modified')
+    }
+  })
+
+  it('lets the scan descend into returned folders', async () => {
+    const { adapter, folder } = await pick()
+    const [year] = await adapter.listNames(folder)
+    const inner = await adapter.listNames(year.folder!)
+    expect(inner.map((e) => e.name)).toEqual(['trip', 'a.jpg'])
+  })
+
+  it('fails with a permission error and never asks for permission', async () => {
+    const adapter = new BrowserFileSystemAdapter()
+    const handle = dirHandle({ ...tree, permission: 'prompt' })
+    const request = vi.spyOn(handle as unknown as { requestPermission(): Promise<string> }, 'requestPermission')
+    stubPicker(async () => handle)
+    const folder = (await adapter.pickFolder())!
+    await expect(adapter.listNames(folder)).rejects.toMatchObject({ code: 'permission' })
+    expect(request).not.toHaveBeenCalled()
+  })
+
+  it('maps read failures and unknown folders to FsError', async () => {
+    const { adapter, folder } = await pick({ ...tree, failWith: 'NotFoundError' })
+    await expect(adapter.listNames(folder)).rejects.toMatchObject({ code: 'not-found' })
+    await expect(adapter.listNames({ id: 'nope', name: 'x', parent: null })).rejects.toMatchObject({ code: 'not-found' })
+  })
+})
+
 describe('getFile', () => {
   it('returns the File of a listed entry', async () => {
     const { adapter, folder } = await pick()
