@@ -44,6 +44,7 @@ const adapter: FileSystemAdapter = {
   pickFolder: async () => root,
   listEntries: async (f) => listings[f.id] ?? [],
   listSubfolders: async () => [],
+  listNames: async () => [],
   getFile: (entry) =>
     new Promise<File>((resolve) => {
       const content = entry.name.endsWith('.jpg') ? jpegWithExif('Canon') : new Uint8Array()

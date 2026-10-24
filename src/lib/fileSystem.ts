@@ -24,6 +24,11 @@ export interface FileSystemAdapter {
   listEntries(folder: FolderRef): Promise<FileSystemEntry[]>
   /** תיקיות משנה בלבד, ללא קריאת פרטי קבצים (לעץ הניווט). */
   listSubfolders(folder: FolderRef): Promise<FolderRef[]>
+  /**
+   * שם, סוג ומזהה בלבד (בלי גודל ותאריך ובלי getFile), לסריקה עמוקה.
+   * לא מבקש הרשאה: תיקייה שדורשת אותה נזרקת כ-`permission`.
+   */
+  listNames(folder: FolderRef): Promise<FileSystemEntry[]>
   /** קורא את הקובץ (File) לצורך תצוגה מקדימה ומטא-דאטה. */
   getFile(entry: FileSystemEntry): Promise<File>
 }

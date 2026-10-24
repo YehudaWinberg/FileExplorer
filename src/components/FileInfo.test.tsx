@@ -51,6 +51,7 @@ const adapter: FileSystemAdapter = {
   pickFolder: async () => root,
   listEntries: async (folder) => listings[folder.id] ?? [],
   listSubfolders: async () => [],
+  listNames: async () => [],
   getFile: (entry) =>
     new Promise<File>((resolve, reject) => {
       const file = new File([(contents[entry.name] ?? new Uint8Array()) as BlobPart], entry.name)

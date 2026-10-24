@@ -35,6 +35,7 @@ const adapter: FileSystemAdapter = {
   pickFolder: async () => root,
   listEntries: async (f) => listings[f.id] ?? [],
   listSubfolders: async () => [],
+  listNames: async () => [],
   getFile: (entry) => {
     reads.push(entry.id)
     return new Promise<File>((resolve, reject) => {

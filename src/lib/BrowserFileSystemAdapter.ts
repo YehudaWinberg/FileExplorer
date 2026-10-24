@@ -99,6 +99,28 @@ export class BrowserFileSystemAdapter implements FileSystemAdapter {
     }
   }
 
+  async listNames(folder: FolderRef): Promise<FileSystemEntry[]> {
+    try {
+      const dir = this.folders.get(folder.id)
+      if (!dir) throw new FsError('not-found', 'התיקייה לא נמצאה. נסה לבחור אותה מחדש.')
+      await this.requireGrantedPermission(dir)
+      const result: FileSystemEntry[] = []
+      for await (const [name, handle] of dir.entries()) {
+        if (handle.kind === 'directory') {
+          const sub = this.registerFolder(folder, name, handle as FileSystemDirectoryHandle)
+          result.push({ id: sub.id, name, kind: 'folder', extension: '', folder: sub })
+        } else {
+          const id = `${folder.id}/${name}`
+          this.files.set(id, handle as FileSystemFileHandle)
+          result.push({ id, name, kind: 'file', extension: getExtension(name) })
+        }
+      }
+      return result
+    } catch (error) {
+      throw toFsError(error)
+    }
+  }
+
   async getFile(entry: FileSystemEntry): Promise<File> {
     const handle = this.files.get(entry.id)
     if (!handle) throw new FsError('not-found', 'הקובץ לא נמצא. נסה לרענן את התיקייה.')
@@ -125,6 +147,15 @@ export class BrowserFileSystemAdapter implements FileSystemAdapter {
     if (!dir) throw new FsError('not-found', 'התיקייה לא נמצאה. נסה לבחור אותה מחדש.')
     await this.ensureReadPermission(dir)
     return dir
+  }
+
+  /** בודק הרשאה קיימת בלבד, בלי להציג בקשה (סריקה לא מפריעה באמצע). */
+  private async requireGrantedPermission(dir: FileSystemDirectoryHandle): Promise<void> {
+    const handle = dir as FileSystemDirectoryHandle & PermissionCapableHandle
+    if (!handle.queryPermission) return
+    if ((await handle.queryPermission({ mode: 'read' })) !== 'granted') {
+      throw new FsError('permission', 'אין הרשאת גישה לתיקייה.')
+    }
   }
 
   private async ensureReadPermission(dir: FileSystemDirectoryHandle): Promise<void> {
