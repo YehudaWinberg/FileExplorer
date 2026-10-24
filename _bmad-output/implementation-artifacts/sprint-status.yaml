@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-25-2026 00:23
-last_updated: 10-25-2026 02:30
+last_updated: 10-25-2026 01:53
 project: FileExplorer
 project_key: NOKEY
 tracking_system: file-system
@@ -42,22 +42,153 @@ development_status:
   1-4-מסך-תוצאות: done
   1-5-תיבת-חיפוש-בשורת-הכתובת: done
   1-6-יציאה-מחיפוש-ואי-שבירה: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: done
   2-1-השהיה-והמשך-של-סריקה: done
   2-2-פס-התקדמות: done
   2-3-תקרת-500-והודעת-הפסקה: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   epic-3: done
   3-1-חישוב-אחוז-קרבה: done
   3-2-טבעת-קרבה-בשורת-תוצאה: done
   3-3-מיון-לפי-קרבה: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
   epic-4: done
   4-1-תצוגה-מקדימה-בלחיצה-אחת: done
   4-2-חלונית-בחירה-ומעבר-למיקום: done
   4-3-חזרה-למסך-התוצאות: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
+action_items:
+  - id: "epic-1-retro-item-1-להתאים-את-ה-ac-של-1-1-ב-epics-md-לסטיית"
+    epic: 1
+    action: "להתאים את ה-AC של 1.1 ב-epics.md לסטיית ? (תו בודד בהתאמת מכיל) ולתעד
+      כסטייה מקובלת"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-25.md"
+  - id: "epic-1-retro-item-2-להסיר-aria-live-מה-footer-ב-statusbar-ts"
+    epic: 1
+    action: "להסיר aria-live מה-footer ב-StatusBar.tsx ולהכריז רק על מעברי מצב (NFR8)"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-25.md"
+  - id: "epic-1-retro-item-3-להציג-emptystate-גם-בסטטוס-stopped-ללא-ת"
+    epic: 1
+    action: "להציג EmptyState גם בסטטוס stopped ללא תוצאות ב-SearchResults.tsx"
+    owner: "yehuda"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-25.md"
+  - id: "epic-1-retro-item-4-להוסיף-בדיקות-back-forward-אחרי-ניקוי-סש"
+    epic: 1
+    action: "להוסיף בדיקות: back/forward אחרי ניקוי סשן, סנכרון טיוטה בהיסטוריה, Node_Modules/.GIT
+      ב-scanTree.test.ts"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-25.md"
+  - id: "epic-1-retro-item-5-לטפל-באזהרות-lint-ב-searchcontext-tsx-10"
+    epic: 1
+    action: "לטפל באזהרות lint ב-SearchContext.tsx:101 וב-SearchBox.tsx:37 או לתעד
+      כמקובלות"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-25.md"
+  - id: "epic-1-retro-item-6-לנקות-מ-deferred-work-md-פריטים-שנסגרו-ר"
+    epic: 1
+    action: "לנקות מ-deferred-work.md פריטים שנסגרו (ריבוע ב-searchReducer אחרי תקרת
+      500)"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-25.md"
+  - id: "epic-1-retro-item-7-לאמץ-מזהה-סיפור-בנושא-הקומיט-כדי-ש-git_e"
+    epic: 1
+    action: "לאמץ מזהה סיפור בנושא הקומיט כדי ש-git_evidence ישייך קומיטים לסיפורים"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-25.md"
+  - id: "epic-2-retro-item-8-להוציא-את-progresspercent-מ-searchbox-ts"
+    epic: 2
+    action: "להוציא את progressPercent מ-SearchBox.tsx ולסגור את אזהרת only-export-components"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-25.md"
+  - id: "epic-2-retro-item-9-להוסיף-בדיקת-קליקים-רצופים-להשהיה-והמשך"
+    epic: 2
+    action: "להוסיף בדיקת קליקים רצופים להשהיה והמשך או לתקן את sessionRef שמתעדכן
+      באפקט"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-25.md"
+  - id: "epic-2-retro-item-10-למחוק-מ-deferred-work-md-את-שלושת-הפריטי"
+    epic: 2
+    action: "למחוק מ-deferred-work.md את שלושת הפריטים שנסגרו ב-2.1, ב-2.3 ובתיקון
+      5199078"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-25.md"
+  - id: "epic-2-retro-item-11-להוסיף-לשלב-סגירת-סיפור-שאלה-אילו-פריטי"
+    epic: 2
+    action: "להוסיף לשלב סגירת סיפור שאלה אילו פריטי deferred-work נסגרו, ולהחיל סקירה
+      עצמאית על סיפור שנוגע ב-runSearch"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-25.md"
+  - id: "epic-3-retro-item-12-להוסיף-בדיקות-לבחירת-טווח-shift-אחרי-מיו"
+    epic: 3
+    action: "להוסיף בדיקות לבחירת טווח Shift אחרי מיון ולתוצאה שמגיעה בהשהיה אחרי
+      מיון"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-25.md"
+  - id: "epic-3-retro-item-13-להחליט-אם-טבעת-הקרבה-לדפוס-בלי-תווים-קבו"
+    epic: 3
+    action: "להחליט אם טבעת הקרבה לדפוס בלי תווים קבועים כמו *.pdf, שמשקפת עומק בלבד,
+      מקובלת או דורשת הסבר"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-25.md"
+  - id: "epic-3-retro-item-14-להוסיף-ל-epics-md-ב-fr15-וב-story-3-1-את"
+    epic: 3
+    action: "להוסיף ל-epics.md ב-FR15 וב-Story 3.1 את כלל השם המכוסה: שם בלי סיומת
+      כשהדפוס בלי סיומת"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-25.md"
+  - id: "epic-3-retro-item-15-לאכוף-בכל-סיפור-triage-log-או-שורה-סקירה"
+    epic: 3
+    action: "לאכוף בכל סיפור Triage Log או שורה סקירה לא הורצה עם סיבה"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-25.md"
+  - id: "epic-4-retro-item-16-לעדכן-את-epics-md-להסיר-searchquery-מ-ac"
+    epic: 4
+    action: "לעדכן את epics.md: להסיר searchQuery מ-AC של 4.3 ולסמן את UX-DR14 כמטופל"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-10-25.md"
+  - id: "epic-4-retro-item-17-להוסיף-scrollintoview-לפריט-המסומן-אחרי"
+    epic: 4
+    action: "להוסיף scrollIntoView לפריט המסומן אחרי מעבר למיקום"
+    owner: "yehuda"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-10-25.md"
+  - id: "epic-4-retro-item-18-לבדוק-בדפדפן-את-תרחיש-uj-1-לחיצה-כפולה-ח"
+    epic: 4
+    action: "לבדוק בדפדפן את תרחיש UJ-1: לחיצה כפולה, חלונית, מעבר למיקום, אחורה"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-10-25.md"
+  - id: "epic-4-retro-item-19-להחיל-כלל-קבוע-לכל-סיפור-triage-log-או-ש"
+    epic: 4
+    action: "להחיל כלל קבוע לכל סיפור: Triage Log או שורה סקירה לא הורצה עם סיבה"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-10-25.md"
+  - id: "epic-4-retro-item-20-להוסיף-לשלב-סגירת-סיפור-בדיקת-grep-על-מו"
+    epic: 4
+    action: "להוסיף לשלב סגירת סיפור בדיקת grep על מונחים שהוסרו בקוד ובמסמכי התכנון"
+    owner: "yehuda"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-10-25.md"

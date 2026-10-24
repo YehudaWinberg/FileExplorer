@@ -36,8 +36,8 @@
   evidence: הכפתור הממוקד נמחק מה-DOM; `sessionRef` מתעדכן באפקט אחרי רינדור.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-choice-dialog-goto-location.md`
-  summary: אחרי מעבר למיקום הפריט המסומן אינו נגלל לתצוגה ברשימה ארוכה, והחלונית ממוקמת קבוע ולא ליד השורה.
-  evidence: אין scrollIntoView; `.choice` ממוקמת ב-top קבוע.
+  summary: החלונית ממוקמת קבוע ולא ליד השורה. (הגלילה לפריט המסומן אחרי מעבר למיקום תוקנה בענף `fix/scroll-to-selected-after-goto`.)
+  evidence: `.choice` ממוקמת ב-top קבוע.
 
 ## Deferred from: code review of epics 1-4 (2026-10-25)
 
