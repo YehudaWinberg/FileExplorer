@@ -26,19 +26,17 @@ export function useVisibleEntries(): FileSystemEntry[] {
   }, [location.type, session, details, state.entries, state.typeFilter])
 }
 
-/** הפריט היחיד שנבחר (כולל גודל ותאריך שנטענו לתוצאה), או null. */
+/** הפריט היחיד שנבחר (כולל גודל ותאריך שנטענו לתוצאה), או null. זהות האובייקט יציבה כל עוד הפריט ופרטיו לא השתנו. */
 export function useSelectedEntry(): FileSystemEntry | null {
   const { state, location } = useExplorer()
   const search = useSearchOptional()
-  const session = search?.session ?? null
-  const details = search?.details
-  return useMemo(() => {
-    if (state.selection.length !== 1) return null
-    const id = state.selection[0]
-    if (location.type === 'search') {
-      const result = session?.results.find((r) => r.entry.id === id)
-      return result ? withDetails(result.entry, details ?? {}) : null
-    }
-    return state.entries.find((e) => e.id === id) ?? null
-  }, [state.selection, state.entries, location.type, session, details])
+  const id = state.selection.length === 1 ? state.selection[0] : null
+  const base =
+    id === null
+      ? null
+      : location.type === 'search'
+        ? (search?.session?.results.find((r) => r.entry.id === id)?.entry ?? null)
+        : (state.entries.find((e) => e.id === id) ?? null)
+  const extra = id !== null && location.type === 'search' ? search?.details[id] : undefined
+  return useMemo(() => (base && extra ? { ...base, ...extra } : base), [base, extra])
 }

@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { FileSystemAdapter } from '../lib/fileSystem'
 import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
+import { jpegWithExif } from '../lib/testFixtures'
 import { ExplorerProvider, useExplorer } from '../state/ExplorerContext'
 import { SearchProvider, useSearch } from '../state/SearchContext'
 import { DetailsPane } from './DetailsPane'
@@ -129,5 +130,61 @@ describe('SearchResults', () => {
     expect(within(pane).getByText('a/b/c/d/deep.txt')).toBeTruthy()
     expect(rows()[1].getAttribute('aria-selected')).toBe('true')
     expect(screen.getByText('1 פריטים נבחרו')).toBeTruthy()
+  })
+})
+
+
+describe('one-click preview (4.1)', () => {
+  it('shows folder details without a preview when a folder result is selected', async () => {
+    const { adapter } = makeAdapter()
+    mount(adapter)
+    search('a')
+    await waitFor(() => expect(rowNames()).toContain('a'))
+    fireEvent.click(rows()[0])
+    const pane = await screen.findByRole('complementary', { name: 'פרטי תיקייה' })
+    expect(within(pane).getByText('תיקיית קבצים')).toBeTruthy()
+    expect(within(pane).getByText('מיקום')).toBeTruthy()
+    expect(pane.querySelector('.details__preview')).toBeNull()
+    expect(screen.queryByText('בחרו תוצאה כדי לראות תצוגה מקדימה')).toBeNull()
+  })
+
+  it('keeps the selection and the preview stable while more results keep arriving', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:test/1')
+    URL.revokeObjectURL = vi.fn()
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const dirA: FolderRef = { id: 'root/a', name: 'a', parent: root }
+    const listings: Record<string, FileSystemEntry[]> = {
+      [root.id]: [file(root, 'photo.jpg'), dir(dirA)],
+      [dirA.id]: [file(dirA, 'second.jpg'), file(dirA, 'third.jpg')],
+    }
+    const getFile = vi.fn(async (entry: FileSystemEntry) => new File([jpegWithExif('Canon') as BlobPart], entry.name))
+    const adapter: FileSystemAdapter = {
+      isSupported: () => true,
+      pickFolder: async () => root,
+      listEntries: async (f) => listings[f.id] ?? [],
+      listSubfolders: async () => [],
+      listNames: async (f) => {
+        if (f.id === dirA.id) await held
+        return listings[f.id] ?? []
+      },
+      getFile,
+    }
+    mount(adapter)
+    search('*.jpg')
+    await waitFor(() => expect(rowNames()).toEqual(['photo.jpg']))
+    fireEvent.click(rows()[0])
+    await screen.findByText('Canon')
+    const previews = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.length
+    expect(previews).toBe(1)
+
+    await act(async () => release())
+    await waitFor(() => expect(rowNames()).toEqual(['photo.jpg', 'second.jpg', 'third.jpg']))
+    await act(async () => {})
+    expect(rows()[0].getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByText('Canon')).toBeTruthy()
+    expect((URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.length).toBe(previews)
+    // קריאה בלבד: רק getFile, בלי שום כתיבה
+    expect(getFile.mock.calls.every(([entry]) => entry.kind === 'file')).toBe(true)
   })
 })

@@ -1197,3 +1197,8 @@ button.crumb:hover {
     animation: none;
   }
 }
+
+/* חלונית פרטים במסך תוצאות (UX-DR11) */
+.details--search {
+  background: var(--details-bg);
+}
