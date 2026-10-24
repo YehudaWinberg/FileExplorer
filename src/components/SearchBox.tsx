@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { normalizePattern } from '../lib/models/entry'
 import { useExplorer } from '../state/ExplorerContext'
 import { useSearch } from '../state/SearchContext'
-import { RESULT_CAP, type SearchStatus } from '../state/searchReducer'
+import { CAPPED_MESSAGE, RESULT_CAP, type SearchStatus } from '../state/searchReducer'
 import { PauseIcon, ResumeIcon, SearchIcon, StopIcon } from './icons'
 
 const LABEL = 'חיפוש בתיקייה הנוכחית ובתיקיות שבתוכה'
@@ -57,7 +57,9 @@ export function SearchBox({ onFocusChange }: { onFocusChange?: (focused: boolean
         ? 'סורק'
         : session.status === 'paused'
           ? 'הסריקה מושהית'
-          : `הסריקה ${session.status === 'done' ? 'הסתיימה' : 'נעצרה'}, נמצאו ${session.count} תוצאות`
+          : session.status === 'capped'
+            ? CAPPED_MESSAGE
+            : `הסריקה ${session.status === 'done' ? 'הסתיימה' : 'נעצרה'}, נמצאו ${session.count} תוצאות`
 
   return (
     <div className={`search-box${focused ? ' search-box--focus' : ''}${paused ? ' search-box--paused' : ''}`} data-disabled={!enabled}>

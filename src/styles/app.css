@@ -1010,6 +1010,16 @@ button.crumb:hover {
   min-width: 480px;
 }
 
+.results-notice {
+  flex: none;
+  margin: 0;
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--paused-text);
+  background: var(--paused-bg);
+  border-bottom: 1px solid var(--border);
+}
+
 .result-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 36% 90px;

@@ -5,6 +5,7 @@ import { formatDate, formatSize } from '../lib/utils/format'
 import { formatResultPath } from '../lib/utils/resultPath'
 import { useExplorer } from '../state/ExplorerContext'
 import { useSearch } from '../state/SearchContext'
+import { CAPPED_MESSAGE, STOPPED_MESSAGE } from '../state/searchReducer'
 import { useVisibleEntries } from '../state/selectors'
 import { EmptyState } from './EmptyState'
 import { FileKindIcon } from './icons'
@@ -67,8 +68,18 @@ export function SearchResults() {
     )
   }
 
+  // `לא נמצאו תוצאות` שמורה ל-`done`; הפסקה ותקרה מקבלות הודעה משלהן.
+  const notice =
+    session?.status === 'capped' ? CAPPED_MESSAGE : session?.status === 'stopped' ? STOPPED_MESSAGE : null
+  if (notice && entries.length === 0) return <EmptyState title={notice} />
+
   return (
     <div className="file-view">
+      {notice && (
+        <p className="results-notice">
+          {notice}
+        </p>
+      )}
       <div className="file-view__scroll">
         <div className="results" role="table" aria-label="תוצאות החיפוש" onClick={actions.clearSelection}>
           <div role="row" className="result-row result-row--header" onClick={(e) => e.stopPropagation()}>

@@ -169,3 +169,11 @@ describe('scanTree performance (targets on an in-memory adapter, not guarantees)
     expect(deepMs).toBeLessThan(5000)
   })
 })
+
+describe('scanTree does not enforce a result cap (AD-8)', () => {
+  it('yields every match even beyond 500; the cap belongs to the consumer', async () => {
+    const files = Array.from({ length: 650 }, (_, i) => `f${i}.txt`)
+    const results = await collect(run({ children: files }, '*.txt').gen)
+    expect(results).toHaveLength(650)
+  })
+})

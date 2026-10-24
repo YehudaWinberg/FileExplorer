@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
 import type { SearchResult } from '../lib/scanTree'
-import { searchReducer, type SearchAction, type SearchState } from './searchReducer'
+import { RESULT_CAP, searchReducer, type SearchAction, type SearchState } from './searchReducer'
 
 const root: FolderRef = { id: 'root', name: 'Root', parent: null }
 const result = (name: string, depth = 1): SearchResult => {
@@ -103,5 +103,29 @@ describe('searchReducer', () => {
       const scanning = run(start(1))
       expect(searchReducer(scanning, { type: 'resume', runId: 1 })).toBe(scanning)
     })
+  })
+})
+
+describe('result cap (2.3)', () => {
+  const fill = (n: number): SearchAction[] =>
+    Array.from({ length: n }, (_, i) => ({ type: 'result', runId: 1, result: result(`f${i}.txt`) }) as SearchAction)
+
+  it('moves to capped from scanning or paused, and keeps the results', () => {
+    const state = run(start(1), ...fill(3), { type: 'cap', runId: 1 })
+    expect(state).toMatchObject({ status: 'capped', count: 3 })
+    expect(run(start(1), { type: 'pause', runId: 1 }, { type: 'cap', runId: 1 })?.status).toBe('capped')
+  })
+
+  it('never stores more than RESULT_CAP results', () => {
+    const state = run(start(1), ...fill(RESULT_CAP + 5))
+    expect(state?.count).toBe(RESULT_CAP)
+  })
+
+  it('cannot resume, pause, stop or finish from capped; a new start is clean', () => {
+    const capped = run(start(1), ...fill(2), { type: 'cap', runId: 1 })
+    for (const type of ['resume', 'pause', 'stop', 'finished'] as const) {
+      expect(searchReducer(capped, { type, runId: 1 })).toBe(capped)
+    }
+    expect(searchReducer(capped, start(2))).toMatchObject({ status: 'scanning', count: 0, results: [] })
   })
 })

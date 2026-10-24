@@ -383,3 +383,32 @@ describe('scan progress bar (2.2)', () => {
     expect(fill()).toBeNull()
   })
 })
+
+describe('stop and cap messages (2.3)', () => {
+  it('shows the stopped message instead of "no results" when stopped with nothing found', async () => {
+    let release!: () => void
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+    await openRoot()
+    await searchFor('rep')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'עצירה' })))
+    expect(document.querySelector('.empty__title')!.textContent).toBe('הסריקה הופסקה — ייתכנו תוצאות נוספות')
+    expect(screen.queryByText('לא נמצאו תוצאות')).toBeNull()
+  })
+
+  it('caps at 500 results with the message, keeps the results and fills the bar', async () => {
+    const original = listings.root
+    listings.root = [file(root, 'Report.pdf'), ...Array.from({ length: 600 }, (_, i) => file(root, `cap${i}.txt`))]
+    try {
+      await openRoot()
+      await searchFor('cap')
+      expect(document.querySelector('.results-notice')!.textContent).toBe('הוצגו 500 תוצאות — יש עוד. צמצמו את החיפוש')
+      expect(screen.getByRole('status').textContent).toBe('הוצגו 500 תוצאות — יש עוד. צמצמו את החיפוש')
+      expect(within(screen.getByRole('table', { name: 'תוצאות החיפוש' })).getAllByRole('row')).toHaveLength(501)
+      expect(document.querySelector<HTMLElement>('.scan-progress__fill')!.style.width).toBe('100%')
+      expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+      expect(screen.getByText('500 תוצאות')).toBeTruthy()
+    } finally {
+      listings.root = original
+    }
+  })
+})

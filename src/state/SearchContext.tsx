@@ -13,7 +13,7 @@ import { normalizePattern, type FileSystemEntry, type FolderRef } from '../lib/m
 import { scanTree } from '../lib/scanTree'
 import { compilePattern } from '../lib/utils/pattern'
 import { useExplorer } from './ExplorerContext'
-import { searchReducer, type SearchSession } from './searchReducer'
+import { RESULT_CAP, searchReducer, type SearchSession } from './searchReducer'
 
 export interface SearchActions {
   /** מתחיל חיפוש מהמיקום הנוכחי (`folder`, או `search` להחלפה). במקומות אחרים לא עושה דבר. */
@@ -178,6 +178,8 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       const controller = new AbortController()
       controllerRef.current = controller
       const scan = scanTree(adapter, root, compilePattern(pattern), controller.signal)
+      let received = 0
+      let capped = false
       try {
         while (!controller.signal.aborted) {
           // בהשהיה לא קוראים ל-next(); תוצאה שכבר בדרך (next() שהתחיל) נשמרת בלולאה למטה.
@@ -188,6 +190,13 @@ export function SearchProvider({ children }: { children: ReactNode }) {
           const step = await scan.next()
           if (step.done || controller.signal.aborted) break
           dispatch({ type: 'result', runId, result: step.value })
+          received += 1
+          if (received >= RESULT_CAP) {
+            // התקרה נאכפת כאן, בצרכן: עוצרים את המחולל ומסמנים `capped`.
+            capped = true
+            dispatch({ type: 'cap', runId })
+            break
+          }
         }
       } catch {
         // כשל בלתי צפוי בסריקה מסיים אותה עם מה שנמצא.
@@ -196,7 +205,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
         await scan.return(undefined).catch(() => undefined)
         if (controllerRef.current === controller) pausedRef.current = false
       }
-      if (!controller.signal.aborted) dispatch({ type: 'finished', runId })
+      if (!controller.signal.aborted && !capped) dispatch({ type: 'finished', runId })
     },
     [adapter],
   )

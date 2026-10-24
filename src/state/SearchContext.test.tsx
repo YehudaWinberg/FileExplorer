@@ -269,3 +269,26 @@ describe('SearchProvider pause and resume', () => {
     expect(api.search.session?.status).toBe('done')
   })
 })
+
+describe('SearchProvider result cap', () => {
+  const many = Array.from({ length: 600 }, (_, i) => file(root, `m${i}.txt`))
+
+  it('stops the generator at 500 results, marks capped and never lists later folders', async () => {
+    const { adapter, listNames } = makeAdapter()
+    const original = adapter.listNames
+    adapter.listNames = async (folder) => (folder.id === root.id ? [...many, subEntry] : original(folder))
+    mount(adapter)
+    act(() => api.explorer.actions.goTo({ type: 'folder', folder: root }))
+    act(() => api.search.actions.start('txt'))
+    await waitFor(() => expect(api.search.session?.status).toBe('capped'))
+    expect(api.search.session?.count).toBe(500)
+    expect(listNames.mock.calls.map(([f]) => f.id)).not.toContain(sub.id)
+    // התוצאות הנוספות מהרשימה הראשונה נזרקות ואין סטטוס done אחר כך
+    await act(async () => {})
+    expect(api.search.session).toMatchObject({ status: 'capped', count: 500 })
+
+    act(() => api.search.actions.start('b.txt'))
+    await waitFor(() => expect(api.search.session?.status).toBe('done'))
+    expect(api.search.session?.count).toBe(1)
+  })
+})
