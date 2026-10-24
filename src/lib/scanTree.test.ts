@@ -63,7 +63,7 @@ describe('scanTree', () => {
   it('yields one result per match with depth 1 for direct children', async () => {
     const { gen, root } = run(deep, '*.txt')
     const results = await collect(gen)
-    expect(results[0]).toEqual({ entry: expect.objectContaining({ name: 'a.txt' }), parent: root, depth: 1, score: 0 })
+    expect(results[0]).toEqual({ entry: expect.objectContaining({ name: 'a.txt' }), parent: root, depth: 1, score: 95 })
     expect(results).toHaveLength(5)
   })
 
@@ -175,5 +175,17 @@ describe('scanTree does not enforce a result cap (AD-8)', () => {
     const files = Array.from({ length: 650 }, (_, i) => `f${i}.txt`)
     const results = await collect(run({ children: files }, '*.txt').gen)
     expect(results).toHaveLength(650)
+  })
+})
+
+describe('scanTree scores (3.1)', () => {
+  it('computes score through scoreMatch without changing the BFS order', async () => {
+    const tree: Tree = { children: [{ dir: 'sub', children: ['abc'] }, 'abc', 'abcd'] }
+    const results = await collect(run(tree, 'abc').gen)
+    expect(results.map((r) => [r.entry.id, r.depth, r.score])).toEqual([
+      ['root/abc', 1, 95],
+      ['root/abcd', 1, Math.round((3 / 4) * 100 - 5)],
+      ['root/sub/abc', 2, 90],
+    ])
   })
 })

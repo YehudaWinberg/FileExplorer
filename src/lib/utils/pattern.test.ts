@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FileSystemEntry } from '../models/entry'
-import { compilePattern, matchesPattern } from './pattern'
+import { compilePattern, matchesPattern, scoreMatch } from './pattern'
 
 const file = (name: string): FileSystemEntry => {
   const dot = name.lastIndexOf('.')
@@ -95,5 +95,64 @@ describe('matchesPattern', () => {
   it('treats .pdf alone as a name pattern', () => {
     expect(matches('.pdf', file('a.pdf'))).toBe(true)
     expect(matches('.pdf', folder('x.pdf'))).toBe(true)
+  })
+})
+
+describe('scoreMatch', () => {
+  const score = (pattern: string, entry: FileSystemEntry, depth = 1) =>
+    scoreMatch(compilePattern(pattern), entry, depth)
+
+  it('returns null when there is no match', () => {
+    expect(score('report', file('photo.jpg'))).toBeNull()
+    expect(score('*.pdf', folder('docs.pdf'))).toBeNull()
+  })
+
+  it('gives an identical name a 100% base, so a direct item scores 95', () => {
+    expect(score('אבא', file('אבא'))).toBe(95)
+    expect(score('אבא', folder('אבא'))).toBe(95)
+  })
+
+  it('scores a partial cover by its share of the name: א*א vs אבא is about 67% before depth', () => {
+    expect(score('א*א', file('אבא'), 1)).toBe(62) // round(66.67 - 5)
+    expect(score('re*ort', file('report'), 1)).toBe(Math.round((5 / 6) * 100 - 5)) // 78
+  })
+
+  it('uses a 100% base for patterns without fixed chars (*.pdf)', () => {
+    expect(score('*.pdf', file('anything.pdf'))).toBe(95)
+  })
+
+  it('counts ? as a fixed char', () => {
+    expect(compilePattern('a?c').fixedChars).toBe(3)
+    expect(score('a?c', file('abc'))).toBe(95)
+    expect(score('a?c', file('abcdef'))).toBe(Math.round((3 / 6) * 100 - 5))
+  })
+
+  it('does not count the extension when the pattern has none: report vs report.pdf', () => {
+    expect(score('report', file('report.pdf'))).toBe(95)
+    expect(score('report', file('tempReport.pdf'))).toBe(Math.round((6 / 10) * 100 - 5))
+  })
+
+  it('compares against the whole name when the pattern itself spans the extension', () => {
+    expect(score('report.pdf', file('report.pdf'))).toBe(95)
+    expect(score('report.pdf', file('tempReport.pdf'))).toBe(Math.round((10 / 14) * 100 - 5))
+  })
+
+  it('subtracts 5 per depth level with a floor at 0, and never reaches 100', () => {
+    expect(score('abc', file('abc'), 1)).toBe(95)
+    expect(score('abc', file('abc'), 3)).toBe(85)
+    expect(score('abc', file('abc'), 19)).toBe(5)
+    expect(score('abc', file('abc'), 20)).toBe(0)
+    expect(score('abc', file('abc'), 50)).toBe(0)
+    expect(score('abc', file('abc'), 0)).toBe(95)
+  })
+
+  it('gives the shallower result of the same name match a higher score', () => {
+    expect(score('re*ort', file('report'), 1)!).toBeGreaterThan(score('re*ort', file('report'), 2)!)
+  })
+
+  it('always returns an integer', () => {
+    for (let depth = 1; depth < 8; depth++) {
+      expect(Number.isInteger(score('א*א', file('אבגדא'), depth))).toBe(true)
+    }
   })
 })

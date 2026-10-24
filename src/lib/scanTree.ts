@@ -1,6 +1,6 @@
 import { FsError, type FileSystemAdapter } from './fileSystem'
 import type { FileSystemEntry, FolderRef } from './models/entry'
-import { matchesPattern, type CompiledPattern } from './utils/pattern'
+import { scoreMatch, type CompiledPattern } from './utils/pattern'
 
 /** תיקיות שאינן נסרקות (כבדות ולא מעניינות). הרשימה היחידה, מצומצמת במכוון. */
 export const SKIP_DIRS: ReadonlySet<string> = new Set(['node_modules', '.git'])
@@ -11,7 +11,7 @@ export interface SearchResult {
   parent: FolderRef
   /** עומק פריט ישיר בשורש הסריקה הוא 1. */
   depth: number
-  /** 0 זמני עד חישוב הקרבה (Epic 3). */
+  /** ציון קרבה שלם 0..95 מ-`scoreMatch` (מחושב בתוך הסריקה, בלי להשפיע על סדר ה-BFS). */
   score: number
 }
 
@@ -44,7 +44,8 @@ export async function* scanTree(
       const entries = await listOrSkip(adapter, parent)
       for (const entry of entries) {
         if (signal.aborted) return
-        if (matchesPattern(compiled, entry)) yield { entry, parent, depth, score: 0 }
+        const score = scoreMatch(compiled, entry, depth)
+        if (score !== null) yield { entry, parent, depth, score }
         if (entry.kind === 'folder' && entry.folder && !SKIP_DIRS.has(entry.name.toLowerCase())) {
           next.push(entry.folder)
         }

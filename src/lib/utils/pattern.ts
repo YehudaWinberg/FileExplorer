@@ -63,3 +63,25 @@ export function matchesPattern(compiled: CompiledPattern, entry: FileSystemEntry
     compiled.nameRe.test(baseName(entry))
   )
 }
+
+const DEPTH_PENALTY = 5
+
+/** המחרוזת שהדפוס "מכסה": שם הקובץ בלי הסיומת כשהדפוס מתאים לו, ואחרת השם המלא. */
+function coveredName(compiled: CompiledPattern, entry: FileSystemEntry): string {
+  if (compiled.extension !== null) return baseName(entry)
+  const base = baseName(entry)
+  return base !== entry.name && compiled.nameRe.test(base) ? base : entry.name
+}
+
+/**
+ * ציון קרבה שלם בטווח 0..95, או null כשאין התאמה. בסיס השם הוא חלק התווים הקבועים
+ * (`?` נחשב קבוע) מתוך השם המכוסה; ללא תווים קבועים הבסיס 100%. מופחתות 5 נקודות לכל
+ * רמת עומק (פריט ישיר = עומק 1), עם רצפה ב-0, ולכן התוצאה אינה 100 לעולם.
+ */
+export function scoreMatch(compiled: CompiledPattern, entry: FileSystemEntry, depth: number): number | null {
+  if (!matchesPattern(compiled, entry)) return null
+  const length = [...coveredName(compiled, entry)].length
+  const base = compiled.fixedChars === 0 || length === 0 ? 1 : Math.min(compiled.fixedChars / length, 1)
+  const score = Math.round(Math.max(0, base * 100 - DEPTH_PENALTY * Math.max(depth, 1)))
+  return Math.min(score, 100 - DEPTH_PENALTY)
+}
