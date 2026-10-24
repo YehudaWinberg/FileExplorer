@@ -1,6 +1,7 @@
 import { DetailsPane } from './components/DetailsPane'
 import { FileList } from './components/FileList'
 import { PlacesView } from './components/PlacesView'
+import { SearchResults } from './components/SearchResults'
 import { Sidebar } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
 import { TitleBar } from './components/TitleBar'
@@ -27,7 +28,7 @@ export default function App() {
         <Sidebar />
         <main className="content">
           {location.type === 'folder' && <FileList />}
-          {/* מסך התוצאות (location.type === 'search') נוסף בסיפור 1.4. */}
+          {location.type === 'search' && <SearchResults />}
           {location.type !== 'folder' && location.type !== 'search' && <PlacesView mode={location.type} />}
         </main>
         <DetailsPane />

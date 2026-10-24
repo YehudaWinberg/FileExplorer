@@ -8,6 +8,7 @@ import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
 import { formatDate, formatSizeMb } from '../lib/utils/format'
 import { getOpenWithApp } from '../lib/utils/openWith'
 import { useExplorer } from '../state/ExplorerContext'
+import { useSearchOptional } from '../state/SearchContext'
 import { MediaPreview, type MediaState } from './MediaPreview'
 import { PdfPreview } from './PdfPreview'
 import { PDF_LOADING, type PdfState } from './pdfState'
@@ -218,7 +219,13 @@ export function FileInfo({ entry }: { entry: FileSystemEntry }) {
   const mediaKind = (kind === 'audio' || kind === 'video') && !entry.unreadable ? kind : null
   const mediaPreview = useMediaPreview(entry, mediaKind !== null)
   const app = getOpenWithApp(entry.extension)
-  const path = location.type === 'folder' ? relativePath(location.folder, entry.name) : undefined
+  const resultParent = useSearchOptional()?.session?.results.find((r) => r.entry.id === entry.id)?.parent
+  const path =
+    location.type === 'folder'
+      ? relativePath(location.folder, entry.name)
+      : location.type === 'search' && resultParent
+        ? relativePath(resultParent, entry.name)
+        : undefined
   const dimensions = size.status === 'ready' ? size.value : null
 
   return (

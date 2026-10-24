@@ -931,3 +931,117 @@ button.crumb:hover {
 .media-preview__duration {
   color: var(--text-secondary);
 }
+
+/* ---------- Search results ---------- */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.results {
+  min-height: 100%;
+  min-width: 480px;
+}
+
+.result-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36% 90px;
+  align-items: center;
+  height: 52px;
+  padding-inline: 8px;
+  margin-inline: 4px;
+  border-radius: var(--radius);
+  border-bottom: 1px solid var(--bg-mica);
+  position: relative;
+}
+
+.result-row > div {
+  padding-inline: 6px;
+  min-width: 0;
+}
+
+.result-row:not(.result-row--header):hover {
+  background: var(--bg-hover);
+}
+
+.result-row--selected,
+.result-row--selected:hover {
+  background: var(--bg-selected);
+}
+
+.result-row--selected::before {
+  content: '';
+  position: absolute;
+  inset-block: 8px;
+  inset-inline-start: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.result-row--header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 32px;
+  margin-inline: 0;
+  padding-inline: 12px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-layer);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.result-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-name svg {
+  flex: none;
+}
+
+.result-name__text {
+  display: grid;
+  min-width: 0;
+}
+
+.result-name__date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.result-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  unicode-bidi: plaintext;
+}
+
+.result-size {
+  text-align: end;
+  color: var(--text-secondary);
+}
+
+@keyframes result-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.result-row--new:not(.result-row--header) {
+  animation: result-enter 0.4s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-row--new:not(.result-row--header) {
+    animation: none;
+  }
+}

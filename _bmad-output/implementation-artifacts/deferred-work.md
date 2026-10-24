@@ -19,3 +19,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-search-session.md`
   summary: ביטול debounce תלוי בניווט `user` לא ממומש כי אין עדיין debounce.
   evidence: ה-debounce נבנה בתיבת החיפוש (סיפור 1.5).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-results-screen.md`
+  summary: `getFile` נקרא לכל שורה בעת הצגתה, בלי הגבלת מקביליות ובלי טעינה לפי חלון תצוגה; כל תשובה מרנדרת מחדש את כל השורות.
+  evidence: ב-500 תוצאות (תקרה מתוכננת ב-2.3) זה כ-500 קריאות במקביל; בלי תקרה זה גדל עם מספר ההתאמות.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-results-screen.md`
+  summary: ניווט מקלדת ו-ARIA תקין (grid) למסך התוצאות, והצגת קבצים לא קריאים.
+  evidence: אין `tabIndex`/חצים בשורות; `unreadable` נשמר אך השורה מוצגת בלי סימון.

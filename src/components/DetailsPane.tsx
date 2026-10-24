@@ -1,6 +1,7 @@
 import type { FileSystemEntry } from '../lib/models/entry'
 import { getFileKind } from '../lib/utils/fileTypes'
 import { useExplorer } from '../state/ExplorerContext'
+import { useSelectedEntry } from '../state/selectors'
 import { FileInfo } from './FileInfo'
 import { FileKindIcon } from './icons'
 
@@ -23,9 +24,15 @@ function FileDetails({ entry }: { entry: FileSystemEntry }) {
 }
 
 export function DetailsPane() {
-  const { state } = useExplorer()
-  if (state.selection.length !== 1) return null
-  const entry = state.entries.find((e) => e.id === state.selection[0])
-  if (!entry || entry.kind !== 'file') return null
+  const { location } = useExplorer()
+  const entry = useSelectedEntry()
+  if (!entry || entry.kind !== 'file') {
+    if (location.type !== 'search') return null
+    return (
+      <aside className="details" aria-label="פרטי קובץ">
+        <p className="details__note">בחרו תוצאה כדי לראות תצוגה מקדימה</p>
+      </aside>
+    )
+  }
   return <FileDetails key={entry.id} entry={entry} />
 }

@@ -6,9 +6,10 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from 'react'
-import { normalizePattern, type FolderRef } from '../lib/models/entry'
+import { normalizePattern, type FileSystemEntry, type FolderRef } from '../lib/models/entry'
 import { scanTree } from '../lib/scanTree'
 import { compilePattern } from '../lib/utils/pattern'
 import { useExplorer } from './ExplorerContext'
@@ -21,12 +22,20 @@ export interface SearchActions {
   stop: () => void
 }
 
+/** גודל ותאריך נטענים רק לתוצאות שמוצגות (הסריקה עצמה לא קוראת קבצים). */
+export type EntryDetails = Pick<FileSystemEntry, 'size' | 'modified' | 'mimeType' | 'unreadable'>
+
 interface SearchContextValue {
   session: SearchSession | null
+  /** פרטים שנטענו לתוצאות הסשן הנוכחי, לפי מזהה פריט. */
+  details: Record<string, EntryDetails>
   actions: SearchActions
+  /** טוען פעם אחת גודל ותאריך של תוצאה (קובץ בלבד). */
+  requestDetails: (entry: FileSystemEntry) => void
 }
 
 const SearchContext = createContext<SearchContextValue | null>(null)
+const NO_DETAILS: Record<string, EntryDetails> = {}
 
 /**
  * מחזיק את סשן החיפוש ואת הסריקה שלו. הסריקה מופעלת מאפקט יחיד: כשהמיקום הוא `search`
@@ -35,6 +44,8 @@ const SearchContext = createContext<SearchContextValue | null>(null)
 export function SearchProvider({ children }: { children: ReactNode }) {
   const { adapter, location, actions: explorer, userNavigationHook } = useExplorer()
   const [session, dispatch] = useReducer(searchReducer, null)
+  const [loaded, setLoaded] = useState<{ runId: number; byId: Record<string, EntryDetails> }>({ runId: 0, byId: {} })
+  const requestedRef = useRef<{ runId: number; ids: Set<string> }>({ runId: 0, ids: new Set() })
 
   const runIdRef = useRef(0)
   const launchedRunRef = useRef<number | null>(null)
@@ -136,8 +147,39 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     void runSearch(session.runId, session.root, session.pattern)
   }, [location, session, begin, runSearch])
 
-  const value = useMemo(() => ({ session, actions: { start, stop } }), [session, start, stop])
+  const requestDetails = useCallback(
+    (entry: FileSystemEntry) => {
+      const runId = runIdRef.current
+      if (requestedRef.current.runId !== runId) requestedRef.current = { runId, ids: new Set() }
+      if (entry.kind !== 'file' || requestedRef.current.ids.has(entry.id)) return
+      requestedRef.current.ids.add(entry.id)
+      const store = (extra: EntryDetails) => {
+        // תשובה שהגיעה אחרי שהחיפוש הוחלף או נוקה נזרקת.
+        if (runIdRef.current !== runId) return
+        setLoaded((prev) => ({
+          runId,
+          byId: { ...(prev.runId === runId ? prev.byId : {}), [entry.id]: extra },
+        }))
+      }
+      adapter.getFile(entry).then(
+        (file) => store({ size: file.size, modified: file.lastModified, mimeType: file.type || undefined }),
+        () => store({ unreadable: true }),
+      )
+    },
+    [adapter],
+  )
+
+  const details = session && loaded.runId === session.runId ? loaded.byId : NO_DETAILS
+  const value = useMemo(
+    () => ({ session, details, actions: { start, stop }, requestDetails }),
+    [session, details, start, stop, requestDetails],
+  )
   return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>
+}
+
+/** כמו `useSearch`, אך מחזיר null מחוץ ל-SearchProvider (רכיבים משותפים כמו StatusBar). */
+export function useSearchOptional(): SearchContextValue | null {
+  return useContext(SearchContext)
 }
 
 export function useSearch(): SearchContextValue {
