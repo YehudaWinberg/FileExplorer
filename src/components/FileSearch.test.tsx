@@ -527,6 +527,31 @@ describe('choice dialog and go to location (4.2)', () => {
     await flush()
     expect(resultNames()).toEqual(['Report.pdf', 'Reports', 'report-final.pdf'])
   })
+
+  it('scrolls the selected file into view after "go to location", but not on a plain click', async () => {
+    const scrolled: string[] = []
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.textContent ?? '')
+    }
+    try {
+      await openResults()
+      await act(async () => fireEvent.doubleClick(resultRow('report-final.pdf')))
+      await act(async () => fireEvent.click(within(dialog()!).getByRole('button', { name: 'מעבר למיקום' })))
+      await flush()
+
+      expect(scrolled).toHaveLength(1)
+      expect(scrolled[0]).toContain('report-final.pdf')
+
+      // לחיצה רגילה על שורה אחרת בתיקייה אינה מגללת
+      const list = screen.getByRole('table', { name: 'תוכן התיקייה' })
+      const other = within(list).getAllByRole('row').find((r) => r.getAttribute('aria-selected') === 'false' && !r.textContent?.includes('שם'))!
+      await act(async () => fireEvent.click(other))
+      expect(scrolled).toHaveLength(1)
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
+  })
 })
 
 describe('return to the results (4.3)', () => {
