@@ -463,3 +463,65 @@ describe('sort by proximity (3.3)', () => {
     expect(sortButton().disabled).toBe(true)
   })
 })
+
+
+describe('choice dialog and go to location (4.2)', () => {
+  const dialog = () => screen.queryByRole('dialog', { name: 'בחירת פעולה לתוצאה' })
+  const resultRow = (name: string) =>
+    within(screen.getByRole('table', { name: 'תוצאות החיפוש' }))
+      .getAllByRole('row')
+      .find((r) => r.querySelector('.ellipsis')?.textContent === name)!
+
+  async function openResults() {
+    await openRoot()
+    await searchFor('report')
+  }
+
+  it('double click on a file offers preview and go-to-location; a folder only go-to-location', async () => {
+    await openResults()
+    await act(async () => fireEvent.doubleClick(resultRow('report-final.pdf')))
+    expect(within(dialog()!).getByRole('button', { name: 'תצוגה מקדימה' })).toBeTruthy()
+    expect(within(dialog()!).getByRole('button', { name: 'מעבר למיקום' })).toBeTruthy()
+
+    act(() => void fireEvent.keyDown(document, { key: 'Escape' }))
+    expect(dialog()).toBeNull()
+
+    await act(async () => fireEvent.doubleClick(resultRow('Reports')))
+    expect(within(dialog()!).queryByRole('button', { name: 'תצוגה מקדימה' })).toBeNull()
+    expect(within(dialog()!).getByRole('button', { name: 'מעבר למיקום' })).toBeTruthy()
+  })
+
+  it('closes on Escape and on a click outside', async () => {
+    await openResults()
+    await act(async () => fireEvent.doubleClick(resultRow('Report.pdf')))
+    expect(dialog()).not.toBeNull()
+    act(() => void fireEvent.mouseDown(document.body))
+    expect(dialog()).toBeNull()
+  })
+
+  it('"preview" closes the dialog and selects the result', async () => {
+    await openResults()
+    await act(async () => fireEvent.doubleClick(resultRow('Report.pdf')))
+    await act(async () => fireEvent.click(within(dialog()!).getByRole('button', { name: 'תצוגה מקדימה' })))
+    expect(dialog()).toBeNull()
+    expect(resultRow('Report.pdf').getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('"go to location" shows the file folder with the file selected, keeping the search session', async () => {
+    await openResults()
+    await act(async () => fireEvent.doubleClick(resultRow('report-final.pdf')))
+    await act(async () => fireEvent.click(within(dialog()!).getByRole('button', { name: 'מעבר למיקום' })))
+    await flush()
+
+    expect(inResults()).toBeNull()
+    expect(within(address()).getByText('Reports')).toBeTruthy()
+    const list = screen.getByRole('table', { name: 'תוכן התיקייה' })
+    const selectedRow = within(list).getAllByRole('row').find((r) => r.getAttribute('aria-selected') === 'true')!
+    expect(selectedRow.textContent).toContain('report-final.pdf')
+
+    // אחורה (4.3) חוזר לתוצאות אותו סשן: הסשן לא נוקה במעבר
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'חזרה' })))
+    await flush()
+    expect(resultNames()).toEqual(['Report.pdf', 'Reports', 'report-final.pdf'])
+  })
+})

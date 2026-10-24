@@ -1202,3 +1202,45 @@ button.crumb:hover {
 .details--search {
   background: var(--details-bg);
 }
+
+/* חלונית בחירה (UX-DR14): מינימלית, בלי צל; היררכיה במסגרת ורקע */
+.file-view {
+  position: relative;
+}
+
+.choice {
+  position: absolute;
+  inset-inline: 0;
+  top: 56px;
+  z-index: 3;
+  width: 260px;
+  margin-inline: auto;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  background: var(--bg-layer);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.choice__name {
+  margin: 0 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.choice__action {
+  height: 32px;
+  padding-inline: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-layer);
+  text-align: start;
+}
+
+.choice__action:hover {
+  background: var(--bg-hover);
+}

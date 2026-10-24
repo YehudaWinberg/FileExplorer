@@ -28,6 +28,20 @@ describe('navigate replace and search locations', () => {
   })
 })
 
+describe('navigate with select (4.2)', () => {
+  it('selects the given item in the new location and anchors on it', () => {
+    const state = run({ type: 'navigate', location: at(root) }, { type: 'navigate', location: at(child), select: 'root1/2026/a.txt' })
+    expect(state.selection).toEqual(['root1/2026/a.txt'])
+    expect(state.anchor).toBe('root1/2026/a.txt')
+  })
+
+  it('without select the selection is cleared as before', () => {
+    const state = run({ type: 'navigate', location: at(root), select: 'x' }, { type: 'navigate', location: at(child) })
+    expect(state.selection).toEqual([])
+    expect(state.anchor).toBeNull()
+  })
+})
+
 describe('navigation', () => {
   it('starts at home with nothing to go back/forward to', () => {
     const state = run({ type: 'back' }, { type: 'forward' })

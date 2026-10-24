@@ -34,3 +34,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-pause-resume-scan.md`
   summary: אחרי החלפת כפתור השהיה בהמשך הפוקוס אובד, ואין בדיקות StrictMode וקליקים מהירים להשהיה/המשך.
   evidence: הכפתור הממוקד נמחק מה-DOM; `sessionRef` מתעדכן באפקט אחרי רינדור.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-choice-dialog-goto-location.md`
+  summary: אחרי מעבר למיקום הפריט המסומן אינו נגלל לתצוגה ברשימה ארוכה, והחלונית ממוקמת קבוע ולא ליד השורה.
+  evidence: אין scrollIntoView; `.choice` ממוקמת ב-top קבוע.

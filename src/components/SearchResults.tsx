@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
 import { getFileKind } from '../lib/utils/fileTypes'
 import { formatDate, formatSize } from '../lib/utils/format'
@@ -11,13 +11,14 @@ import { EmptyState } from './EmptyState'
 import { FileKindIcon, SortArrowIcon } from './icons'
 import { ProximityRing } from './ProximityRing'
 
-function ResultRow({ entry, parent, score, selected, isNew, onSelect, onVisible }: {
+function ResultRow({ entry, parent, score, selected, isNew, onSelect, onOpen, onVisible }: {
   entry: FileSystemEntry
   parent: FolderRef
   score: number
   selected: boolean
   isNew: boolean
   onSelect: (event: MouseEvent) => void
+  onOpen: () => void
   onVisible: (entry: FileSystemEntry) => void
 }) {
   // גודל ותאריך נטענים רק לשורה שמוצגת, לא לפריטים שנדחו.
@@ -32,6 +33,7 @@ function ResultRow({ entry, parent, score, selected, isNew, onSelect, onVisible 
       aria-selected={selected}
       className={`result-row${selected ? ' result-row--selected' : ''}${isNew ? ' result-row--new' : ''}`}
       onClick={onSelect}
+      onDoubleClick={onOpen}
     >
       <div role="cell" className="result-name">
         <ProximityRing score={score}>
@@ -46,6 +48,41 @@ function ResultRow({ entry, parent, score, selected, isNew, onSelect, onVisible 
         <bdi>{path.text}</bdi>
       </div>
       <div role="cell" className="result-size tabular">{entry.kind === 'file' ? formatSize(entry.size) : ''}</div>
+    </div>
+  )
+}
+
+/** חלונית בחירה (FR18): קובץ מציע תצוגה מקדימה ומעבר למיקום, תיקייה רק מעבר למיקום. */
+function ChoiceDialog({ entry, onPreview, onGoToLocation, onClose }: {
+  entry: FileSystemEntry
+  onPreview: () => void
+  onGoToLocation: () => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    ref.current?.querySelector('button')?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    const onDown = (event: globalThis.MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('mousedown', onDown)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onDown)
+    }
+  }, [onClose])
+
+  return (
+    <div ref={ref} className="choice" role="dialog" aria-label="בחירת פעולה לתוצאה">
+      <p className="choice__name" title={entry.name}>{entry.name}</p>
+      {entry.kind === 'file' && (
+        <button type="button" className="choice__action" onClick={onPreview}>תצוגה מקדימה</button>
+      )}
+      <button type="button" className="choice__action" onClick={onGoToLocation}>מעבר למיקום</button>
     </div>
   )
 }
@@ -83,6 +120,8 @@ export function SearchResults() {
   const entries = useVisibleEntries()
   const selected = useMemo(() => new Set(state.selection), [state.selection])
   const orderedIds = useMemo(() => entries.map((e) => e.id), [entries])
+  const [choiceId, setChoiceId] = useState<string | null>(null)
+  const closeChoice = useMemo(() => () => setChoiceId(null), [])
   const resultById = useMemo(() => new Map((session?.results ?? []).map((r) => [r.entry.id, r])), [session?.results])
 
   if (location.type !== 'search') return null
@@ -92,9 +131,27 @@ export function SearchResults() {
     session?.status === 'capped' ? CAPPED_MESSAGE : session?.status === 'stopped' ? STOPPED_MESSAGE : null
   const empty = entries.length === 0
 
+  const choice = choiceId ? (entries.find((e) => e.id === choiceId) ?? null) : null
+  const choiceParent = choiceId ? resultById.get(choiceId)?.parent : undefined
+
   return (
     <div className="file-view">
       <SortBar />
+      {choice && choiceParent && (
+        <ChoiceDialog
+          entry={choice}
+          onClose={closeChoice}
+          onPreview={() => {
+            actions.select(choice.id, false, false, orderedIds)
+            closeChoice()
+          }}
+          onGoToLocation={() => {
+            closeChoice()
+            // מעבר מתוצאה (origin: 'result') אינו מנקה את הסשן; הקובץ מסומן במיקום החדש.
+            actions.goTo({ type: 'folder', folder: choiceParent }, { origin: 'result', select: choice.id })
+          }}
+        />
+      )}
       {empty && session?.status === 'done' && (
         <EmptyState
           title="לא נמצאו תוצאות"
@@ -122,6 +179,7 @@ export function SearchResults() {
                 selected={selected.has(entry.id)}
                 isNew={session?.status === 'scanning'}
                 onVisible={requestDetails}
+                onOpen={() => setChoiceId(entry.id)}
                 onSelect={(event) => {
                   event.stopPropagation()
                   actions.select(entry.id, event.ctrlKey || event.metaKey, event.shiftKey, orderedIds)

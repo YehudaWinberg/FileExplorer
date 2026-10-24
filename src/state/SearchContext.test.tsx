@@ -322,3 +322,30 @@ describe('SearchProvider sort by score', () => {
     await waitFor(() => expect(api.search.session?.status).toBe('done'))
   })
 })
+
+
+describe('SearchProvider go to location from a result (4.2)', () => {
+  it('keeps the session, pauses a running scan, selects the file and expands the tree', async () => {
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const { adapter } = makeAdapter()
+    const original = adapter.listNames
+    adapter.listNames = async (folder) => {
+      if (folder.id === sub.id) await held
+      return original(folder)
+    }
+    mount(adapter)
+    act(() => api.explorer.actions.goTo({ type: 'folder', folder: root }))
+    act(() => api.search.actions.start('txt'))
+    await waitFor(() => expect(names()).toEqual(['a.txt']))
+
+    act(() =>
+      api.explorer.actions.goTo({ type: 'folder', folder: sub }, { origin: 'result', select: 'root/sub/b.txt' }),
+    )
+    expect(api.explorer.state.selection).toEqual(['root/sub/b.txt'])
+    expect(api.search.session?.status).toBe('paused')
+    expect(names()).toEqual(['a.txt'])
+    await waitFor(() => expect(api.explorer.state.expanded[root.id]).toBe(true))
+    await act(async () => release())
+  })
+})

@@ -27,6 +27,8 @@ export interface GoToOptions {
   origin?: NavigationOrigin
   /** מחליף את הרשומה הנוכחית בהיסטוריה וחותך forward. */
   replace?: boolean
+  /** מזהה פריט שיסומן במיקום החדש (למשל קובץ שאליו עוברים מתוצאה). */
+  select?: string
 }
 
 export interface ExplorerActions {
@@ -121,7 +123,7 @@ export function ExplorerProvider({
 
   const goTo = useCallback((next: Location, options: GoToOptions = {}) => {
     if ((options.origin ?? 'user') === 'user') userNavigationHook.current?.()
-    dispatch({ type: 'navigate', location: next, replace: options.replace })
+    dispatch({ type: 'navigate', location: next, replace: options.replace, select: options.select })
   }, [])
   const navigate = useCallback((next: Location) => goTo(next), [goTo])
 
