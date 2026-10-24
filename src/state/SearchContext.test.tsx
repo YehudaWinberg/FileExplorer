@@ -190,3 +190,82 @@ describe('SearchProvider', () => {
     expect(api.explorer.state).not.toHaveProperty('session')
   })
 })
+
+
+describe('SearchProvider pause and resume', () => {
+  /** root: a.txt + sub; sub: b.txt. הקריאה לתיקיית sub מוחזקת עד שהבדיקה משחררת אותה. */
+  function holdSub() {
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const { adapter, listNames } = makeAdapter()
+    const original = adapter.listNames
+    adapter.listNames = async (folder) => {
+      if (folder.id === sub.id) await held
+      return original(folder)
+    }
+    return { adapter, listNames, release }
+  }
+
+  it('pauses without calling next(), keeps an in-flight result, and resumes without rescanning', async () => {
+    const { adapter, listNames, release } = holdSub()
+    mount(adapter)
+    act(() => api.explorer.actions.goTo({ type: 'folder', folder: root }))
+    act(() => api.search.actions.start('txt'))
+    await waitFor(() => expect(names()).toEqual(['a.txt']))
+
+    act(() => api.search.actions.pause())
+    expect(api.search.session?.status).toBe('paused')
+    // התוצאות מתיקיית sub היו בדרך (next() ממתין לתיקייה המוחזקת) ונשמרות גם בהשהיה
+    await act(async () => release())
+    await waitFor(() => expect(names()).toEqual(['a.txt', 'b.txt']))
+    expect(api.search.session?.status).toBe('paused')
+
+    act(() => api.search.actions.resume())
+    await waitFor(() => expect(api.search.session?.status).toBe('done'))
+    expect(names()).toEqual(['a.txt', 'b.txt'])
+    expect(listNames.mock.calls.filter(([f]) => f.id === root.id)).toHaveLength(1)
+  })
+
+  it('stops from paused and then cannot resume', async () => {
+    const { adapter } = holdSub()
+    mount(adapter)
+    act(() => api.explorer.actions.goTo({ type: 'folder', folder: root }))
+    act(() => api.search.actions.start('txt'))
+    await waitFor(() => expect(names()).toEqual(['a.txt']))
+    act(() => api.search.actions.pause())
+    act(() => api.search.actions.stop())
+    expect(api.search.session?.status).toBe('stopped')
+    act(() => api.search.actions.resume())
+    expect(api.search.session?.status).toBe('stopped')
+    expect(names()).toEqual(['a.txt'])
+  })
+
+  it('back from the results pauses a running scan and keeps the session; forward and resume finish it', async () => {
+    const { adapter, release } = holdSub()
+    mount(adapter)
+    act(() => api.explorer.actions.goTo({ type: 'folder', folder: root }))
+    act(() => api.search.actions.start('txt'))
+    await waitFor(() => expect(names()).toEqual(['a.txt']))
+
+    act(() => api.explorer.actions.back())
+    expect(loc().type).toBe('folder')
+    expect(api.search.session?.status).toBe('paused')
+    expect(names()).toEqual(['a.txt'])
+
+    act(() => api.explorer.actions.forward())
+    expect(loc().type).toBe('search')
+    await act(async () => release())
+    act(() => api.search.actions.resume())
+    await waitFor(() => expect(api.search.session?.status).toBe('done'))
+    expect(names()).toEqual(['a.txt', 'b.txt'])
+  })
+
+  it('pause is ignored unless scanning', async () => {
+    mount(makeAdapter().adapter)
+    act(() => api.explorer.actions.goTo({ type: 'folder', folder: root }))
+    act(() => api.search.actions.start('txt'))
+    await waitFor(() => expect(api.search.session?.status).toBe('done'))
+    act(() => api.search.actions.pause())
+    expect(api.search.session?.status).toBe('done')
+  })
+})

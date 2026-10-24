@@ -283,3 +283,43 @@ describe('leaving the results (FR21)', () => {
     expect(resultNames()).toEqual(['notes.txt'])
   })
 })
+
+
+describe('pause and resume controls (2.1)', () => {
+  function holdAll() {
+    let release!: () => void
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+  }
+
+  it('shows pause next to stop while scanning; paused shows text, a resume button and stop', async () => {
+    holdAll()
+    await openRoot()
+    await searchFor('rep')
+    expect(screen.getByRole('button', { name: 'השהיה' }).getAttribute('title')).toBe('השהיה')
+    expect(screen.getByRole('button', { name: 'עצירה' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'המשך' })).toBeNull()
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'השהיה' })))
+    expect(screen.getByText('מושהה — נמצאו 0')).toBeTruthy()
+    expect(searchBox().closest('.search-box')!.classList.contains('search-box--paused')).toBe(true)
+    expect(screen.getByRole('button', { name: 'המשך' }).getAttribute('title')).toBe('המשך')
+    expect(screen.getByRole('button', { name: 'עצירה' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'השהיה' })).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe('הסריקה מושהית')
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'המשך' })))
+    expect(screen.getByText('סורק… נמצאו 0')).toBeTruthy()
+    expect(searchBox().closest('.search-box')!.classList.contains('search-box--paused')).toBe(false)
+  })
+
+  it('stopping from paused ends the scan and hides every control', async () => {
+    holdAll()
+    await openRoot()
+    await searchFor('rep')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'השהיה' })))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'עצירה' })))
+    expect(screen.queryByRole('button', { name: 'המשך' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
+    expect(screen.queryByText(/מושהה/)).toBeNull()
+  })
+})

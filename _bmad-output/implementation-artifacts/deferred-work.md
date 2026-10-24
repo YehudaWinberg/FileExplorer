@@ -30,3 +30,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-address-bar-search-box.md`
   summary: לחיצה על עצירה מעבירה את הפוקוס ל-body והתיבה מתכווצת באמצע הלחיצה; Enter אינו מתחיל חיפוש מיידי.
   evidence: הכפתור נעלם אחרי העצירה ואין `onKeyDown`; אין בדיקה לאף אחד מהם.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-pause-resume-scan.md`
+  summary: אחרי החלפת כפתור השהיה בהמשך הפוקוס אובד, ואין בדיקות StrictMode וקליקים מהירים להשהיה/המשך.
+  evidence: הכפתור הממוקד נמחק מה-DOM; `sessionRef` מתעדכן באפקט אחרי רינדור.

@@ -67,4 +67,41 @@ describe('searchReducer', () => {
     expect(state).toMatchObject({ runId: 2, pattern: 'b', results: [], count: 0 })
     expect(searchReducer(state, { type: 'clear' })).toBeNull()
   })
+
+  describe('pause and resume (2.1)', () => {
+    const named = (n: string) => ({ type: 'result', runId: 1, result: result(n) }) as SearchAction
+
+    it('moves scanning -> paused -> scanning and keeps the results', () => {
+      const paused = run(start(1), named('a.txt'), { type: 'pause', runId: 1 })
+      expect(paused?.status).toBe('paused')
+      expect(paused?.count).toBe(1)
+      expect(searchReducer(paused, { type: 'resume', runId: 1 })?.status).toBe('scanning')
+    })
+
+    it('saves a result that was already in flight when the pause took effect', () => {
+      const state = run(start(1), { type: 'pause', runId: 1 }, named('late.txt'))
+      expect(state?.results.map((r) => r.entry.name)).toEqual(['late.txt'])
+      expect(state?.status).toBe('paused')
+    })
+
+    it('can stop from paused, and finishing from paused ends as done', () => {
+      expect(run(start(1), { type: 'pause', runId: 1 }, { type: 'stop', runId: 1 })?.status).toBe('stopped')
+      expect(run(start(1), { type: 'pause', runId: 1 }, { type: 'finished', runId: 1 })?.status).toBe('done')
+    })
+
+    it('never resumes or pauses from stopped, done or a stale run', () => {
+      for (const end of [{ type: 'stop' }, { type: 'finished' }] as const) {
+        const ended = run(start(1), { ...end, runId: 1 })
+        expect(searchReducer(ended, { type: 'resume', runId: 1 })).toBe(ended)
+        expect(searchReducer(ended, { type: 'pause', runId: 1 })).toBe(ended)
+      }
+      const base = run(start(2), { type: 'pause', runId: 2 })
+      expect(searchReducer(base, { type: 'resume', runId: 1 })).toBe(base)
+    })
+
+    it('resume only works from paused', () => {
+      const scanning = run(start(1))
+      expect(searchReducer(scanning, { type: 'resume', runId: 1 })).toBe(scanning)
+    })
+  })
 })

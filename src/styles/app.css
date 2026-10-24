@@ -385,6 +385,17 @@ button.crumb:hover {
   flex: none;
 }
 
+.search-box--paused,
+.search-box--paused .search-box__icon,
+.search-box--paused .search-box__status {
+  background: var(--paused-bg);
+  color: var(--paused-text);
+}
+
+.search-box--paused .search-box__input {
+  color: var(--paused-text);
+}
+
 .search-box__input {
   flex: 1;
   min-width: 0;

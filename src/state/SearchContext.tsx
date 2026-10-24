@@ -24,7 +24,11 @@ export interface SearchActions {
   cancelScheduled: () => void
   /** האם מחכה התחלת חיפוש (המשתמש באמצע הקלדה). */
   isScheduled: () => boolean
-  /** עוצר סופית; התוצאות שנמצאו נשמרות. */
+  /** משהה: לא נקרא `next()` נוסף, והתוצאות שנמצאו נשמרות. רק מ-`scanning`. */
+  pause: () => void
+  /** ממשיך מאותה נקודה בלי סריקה מחדש. רק מ-`paused`. */
+  resume: () => void
+  /** עוצר סופית (גם מהשהיה); התוצאות שנמצאו נשמרות. */
   stop: () => void
 }
 
@@ -59,6 +63,12 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const launchedRunRef = useRef<number | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pausedRef = useRef(false)
+  const resumeGateRef = useRef<(() => void) | null>(null)
+  const sessionRef = useRef(session)
+  useEffect(() => {
+    sessionRef.current = session
+  })
   const locationRef = useRef(location)
   useEffect(() => {
     locationRef.current = location
@@ -71,10 +81,18 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 
   const isScheduled = useCallback(() => timerRef.current !== null, [])
 
+  /** משחרר את לולאת הסריקה אם היא ממתינה להמשך. */
+  const openResumeGate = useCallback(() => {
+    resumeGateRef.current?.()
+    resumeGateRef.current = null
+  }, [])
+
   const abortRun = useCallback(() => {
     controllerRef.current?.abort()
     controllerRef.current = null
-  }, [])
+    pausedRef.current = false
+    openResumeGate()
+  }, [openResumeGate])
 
   // ניווט יזום של המשתמש: ניקוי הסשן וביטול הריצה באותו אירוע (React מאחד לרינדור אחד).
   useEffect(() => {
@@ -136,6 +154,19 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     [cancelScheduled, start],
   )
 
+  const pause = useCallback(() => {
+    if (sessionRef.current?.status !== 'scanning') return
+    pausedRef.current = true
+    dispatch({ type: 'pause', runId: sessionRef.current.runId })
+  }, [])
+
+  const resume = useCallback(() => {
+    if (sessionRef.current?.status !== 'paused') return
+    pausedRef.current = false
+    dispatch({ type: 'resume', runId: sessionRef.current.runId })
+    openResumeGate()
+  }, [openResumeGate])
+
   const stop = useCallback(() => {
     cancelScheduled()
     abortRun()
@@ -148,12 +179,22 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       controllerRef.current = controller
       const scan = scanTree(adapter, root, compilePattern(pattern), controller.signal)
       try {
-        for await (const result of scan) {
-          if (controller.signal.aborted) break
-          dispatch({ type: 'result', runId, result })
+        while (!controller.signal.aborted) {
+          // בהשהיה לא קוראים ל-next(); תוצאה שכבר בדרך (next() שהתחיל) נשמרת בלולאה למטה.
+          if (pausedRef.current) {
+            await new Promise<void>((resolve) => (resumeGateRef.current = resolve))
+            continue
+          }
+          const step = await scan.next()
+          if (step.done || controller.signal.aborted) break
+          dispatch({ type: 'result', runId, result: step.value })
         }
       } catch {
         // כשל בלתי צפוי בסריקה מסיים אותה עם מה שנמצא.
+      } finally {
+        // סגירת המחולל מתבצעת רק כשאין next() פעיל (הקריאות רצות ברצף).
+        await scan.return(undefined).catch(() => undefined)
+        if (controllerRef.current === controller) pausedRef.current = false
       }
       if (!controller.signal.aborted) dispatch({ type: 'finished', runId })
     },
@@ -176,6 +217,15 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     launchedRunRef.current = session.runId
     void runSearch(session.runId, session.root, session.pattern)
   }, [location, session, begin, runSearch])
+
+  // יציאה מ-`search` (back/forward) בזמן סריקה משהה אותה ושומרת את הסשן (AD-3).
+  // ניווט `user` כבר ניקה את הסשן, ולכן כאן אין מה להשהות.
+  const previousTypeRef = useRef(location.type)
+  useEffect(() => {
+    const left = previousTypeRef.current === 'search' && location.type !== 'search'
+    previousTypeRef.current = location.type
+    if (left) pause()
+  }, [location.type, pause])
 
   const requestDetails = useCallback(
     (entry: FileSystemEntry) => {
@@ -201,8 +251,8 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 
   const details = session && loaded.runId === session.runId ? loaded.byId : NO_DETAILS
   const value = useMemo(
-    () => ({ session, details, actions: { start, schedule, cancelScheduled, isScheduled, stop }, requestDetails }),
-    [session, details, start, schedule, cancelScheduled, isScheduled, stop, requestDetails],
+    () => ({ session, details, actions: { start, schedule, cancelScheduled, isScheduled, pause, resume, stop }, requestDetails }),
+    [session, details, start, schedule, cancelScheduled, isScheduled, pause, resume, stop, requestDetails],
   )
   return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>
 }

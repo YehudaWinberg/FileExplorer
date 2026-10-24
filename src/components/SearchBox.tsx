@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { normalizePattern } from '../lib/models/entry'
 import { useExplorer } from '../state/ExplorerContext'
 import { useSearch } from '../state/SearchContext'
-import { SearchIcon, StopIcon } from './icons'
+import { PauseIcon, ResumeIcon, SearchIcon, StopIcon } from './icons'
 
 const LABEL = 'חיפוש בתיקייה הנוכחית ובתיקיות שבתוכה'
 const STOP_LABEL = 'עצירה'
+const PAUSE_LABEL = 'השהיה'
+const RESUME_LABEL = 'המשך'
 
 /**
  * תיבת החיפוש בשורת הכתובת. הטקסט הוא טיוטה מקומית בלבד; הדפוס שורד ב-`SearchSession`.
@@ -18,7 +20,8 @@ export function SearchBox({ onFocusChange }: { onFocusChange?: (focused: boolean
   const [draft, setDraft] = useState('')
   const [focused, setFocused] = useState(false)
   const enabled = location.type === 'folder' || location.type === 'search'
-  const scanning = location.type === 'search' && session?.status === 'scanning'
+  const paused = location.type === 'search' && session?.status === 'paused'
+  const active = location.type === 'search' && (session?.status === 'scanning' || paused)
 
   // מיקום חדש (ניווט, back/forward): התיבה משקפת את הדפוס של החיפוש, או מתרוקנת מחוץ לחיפוש.
   const locationPattern = location.type === 'search' ? location.pattern : ''
@@ -46,10 +49,12 @@ export function SearchBox({ onFocusChange }: { onFocusChange?: (focused: boolean
       ? ''
       : session.status === 'scanning'
         ? 'סורק'
-        : `הסריקה ${session.status === 'done' ? 'הסתיימה' : 'נעצרה'}, נמצאו ${session.count} תוצאות`
+        : session.status === 'paused'
+          ? 'הסריקה מושהית'
+          : `הסריקה ${session.status === 'done' ? 'הסתיימה' : 'נעצרה'}, נמצאו ${session.count} תוצאות`
 
   return (
-    <div className={`search-box${focused ? ' search-box--focus' : ''}`} data-disabled={!enabled}>
+    <div className={`search-box${focused ? ' search-box--focus' : ''}${paused ? ' search-box--paused' : ''}`} data-disabled={!enabled}>
       <SearchIcon size={14} className="search-box__icon" />
       <input
         type="search"
@@ -63,11 +68,32 @@ export function SearchBox({ onFocusChange }: { onFocusChange?: (focused: boolean
         onFocus={() => focus(true)}
         onBlur={() => focus(false)}
       />
-      {scanning && session && (
+      {active && session && (
         <>
           <span className="search-box__status tabular" aria-hidden="true">
-            סורק… נמצאו {session.count}
+            {paused ? 'מושהה' : 'סורק…'} {paused ? '— ' : ''}נמצאו {session.count}
           </span>
+          {paused ? (
+            <button
+              type="button"
+              className="search-box__control"
+              aria-label={RESUME_LABEL}
+              title={RESUME_LABEL}
+              onClick={actions.resume}
+            >
+              <ResumeIcon />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="search-box__control"
+              aria-label={PAUSE_LABEL}
+              title={PAUSE_LABEL}
+              onClick={actions.pause}
+            >
+              <PauseIcon />
+            </button>
+          )}
           <button
             type="button"
             className="search-box__control"

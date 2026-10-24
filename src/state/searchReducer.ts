@@ -1,7 +1,11 @@
 import type { FolderRef } from '../lib/models/entry'
 import type { SearchResult } from '../lib/scanTree'
 
-export type SearchStatus = 'scanning' | 'done' | 'stopped'
+/**
+ * idle אינו סטטוס של סשן (אין סשן). מעברים: scanning <-> paused; scanning/paused -> stopped;
+ * scanning/paused -> done. מ-stopped ו-done אין חזרה; רק `start` חדש.
+ */
+export type SearchStatus = 'scanning' | 'paused' | 'done' | 'stopped'
 
 /** הבעלים היחיד של הדפוס ושל תוצאות החיפוש; סשן אחד (האחרון) בכל רגע. */
 export interface SearchSession {
@@ -22,6 +26,8 @@ export type SearchAction =
   | { type: 'start'; runId: number; root: FolderRef; pattern: string }
   | { type: 'result'; runId: number; result: SearchResult }
   | { type: 'finished'; runId: number }
+  | { type: 'pause'; runId: number }
+  | { type: 'resume'; runId: number }
   | { type: 'stop'; runId: number }
   | { type: 'clear' }
 
@@ -34,13 +40,17 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
   if (!state || state.runId !== action.runId) return state
   switch (action.type) {
     case 'result': {
-      // תוצאה שחזרה אחרי עצירה (או אחרי סיום) נזרקת.
-      if (state.status !== 'scanning') return state
+      // תוצאה שכבר בדרך ברגע ההשהיה נשמרת; תוצאה שחזרה אחרי עצירה או סיום נזרקת.
+      if (state.status !== 'scanning' && state.status !== 'paused') return state
       return { ...state, results: [...state.results, action.result], count: state.count + 1 }
     }
     case 'finished':
-      return state.status === 'scanning' ? { ...state, status: 'done' } : state
+      return state.status === 'scanning' || state.status === 'paused' ? { ...state, status: 'done' } : state
+    case 'pause':
+      return state.status === 'scanning' ? { ...state, status: 'paused' } : state
+    case 'resume':
+      return state.status === 'paused' ? { ...state, status: 'scanning' } : state
     case 'stop':
-      return state.status === 'scanning' ? { ...state, status: 'stopped' } : state
+      return state.status === 'scanning' || state.status === 'paused' ? { ...state, status: 'stopped' } : state
   }
 }
