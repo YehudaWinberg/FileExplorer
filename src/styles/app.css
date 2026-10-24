@@ -431,6 +431,33 @@ button.crumb:hover {
   background: var(--bg-hover);
 }
 
+/* פס התקדמות: עיטור בלבד, מתמלא מצד ההתחלה (ימין ב-RTL). */
+.scan-progress {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.scan-progress__fill {
+  display: block;
+  height: 100%;
+  background: var(--scan-progress);
+  transition: width 0.2s ease-out;
+}
+
+.scan-progress__fill--paused {
+  background: var(--paused);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-progress__fill {
+    transition: none;
+  }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

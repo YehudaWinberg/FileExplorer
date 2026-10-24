@@ -2,12 +2,18 @@ import { useEffect, useState } from 'react'
 import { normalizePattern } from '../lib/models/entry'
 import { useExplorer } from '../state/ExplorerContext'
 import { useSearch } from '../state/SearchContext'
+import { RESULT_CAP, type SearchStatus } from '../state/searchReducer'
 import { PauseIcon, ResumeIcon, SearchIcon, StopIcon } from './icons'
 
 const LABEL = 'חיפוש בתיקייה הנוכחית ובתיקיות שבתוכה'
 const STOP_LABEL = 'עצירה'
 const PAUSE_LABEL = 'השהיה'
 const RESUME_LABEL = 'המשך'
+
+/** רוחב הפס באחוזים: סיום ממלא ל-100%, עצירה והשהיה נשארות ברוחב הנוכחי. */
+export function progressPercent(status: SearchStatus, count: number): number {
+  return status === 'done' ? 100 : Math.min(count / RESULT_CAP, 1) * 100
+}
 
 /**
  * תיבת החיפוש בשורת הכתובת. הטקסט הוא טיוטה מקומית בלבד; הדפוס שורד ב-`SearchSession`.
@@ -104,6 +110,14 @@ export function SearchBox({ onFocusChange }: { onFocusChange?: (focused: boolean
             <StopIcon />
           </button>
         </>
+      )}
+      {location.type === 'search' && session && (
+        <span className="scan-progress" aria-hidden="true">
+          <span
+            className={`scan-progress__fill${paused ? ' scan-progress__fill--paused' : ''}`}
+            style={{ width: `${progressPercent(session.status, session.count)}%` }}
+          />
+        </span>
       )}
       <span className="visually-hidden" role="status" aria-live="polite">
         {announcement}

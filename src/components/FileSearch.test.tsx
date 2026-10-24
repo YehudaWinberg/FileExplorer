@@ -6,6 +6,7 @@ import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
 import { ExplorerProvider, useExplorer } from '../state/ExplorerContext'
 import { SearchProvider } from '../state/SearchContext'
 import { FileList } from './FileList'
+import { progressPercent } from './SearchBox'
 import { SearchResults } from './SearchResults'
 import { StatusBar } from './StatusBar'
 import { Toolbar } from './Toolbar'
@@ -321,5 +322,64 @@ describe('pause and resume controls (2.1)', () => {
     expect(screen.queryByRole('button', { name: 'המשך' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'עצירה' })).toBeNull()
     expect(screen.queryByText(/מושהה/)).toBeNull()
+  })
+})
+
+
+describe('scan progress bar (2.2)', () => {
+  const fill = () => document.querySelector<HTMLElement>('.scan-progress__fill')
+  const holdAll = () => {
+    let release!: () => void
+    gate = { wait: new Promise<void>((resolve) => (release = resolve)), release }
+  }
+
+  it('computes the width as count / 500, capped at 100%, and 100% when done', () => {
+    expect(progressPercent('scanning', 0)).toBe(0)
+    expect(progressPercent('scanning', 250)).toBe(50)
+    expect(progressPercent('paused', 125)).toBe(25)
+    expect(progressPercent('stopped', 100)).toBe(20)
+    expect(progressPercent('scanning', 900)).toBe(100)
+    expect(progressPercent('done', 3)).toBe(100)
+  })
+
+  it('has no bar at rest and is decorative only (aria-hidden)', async () => {
+    holdAll()
+    await openRoot()
+    expect(fill()).toBeNull()
+    await searchFor('rep')
+    expect(fill()).not.toBeNull()
+    expect(fill()!.closest('.scan-progress')!.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('is blue while scanning, frozen orange when paused and blue again on resume', async () => {
+    holdAll()
+    await openRoot()
+    await searchFor('rep')
+    expect(fill()!.style.width).toBe('0%')
+    expect(fill()!.classList.contains('scan-progress__fill--paused')).toBe(false)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'השהיה' })))
+    expect(fill()!.classList.contains('scan-progress__fill--paused')).toBe(true)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'המשך' })))
+    expect(fill()!.classList.contains('scan-progress__fill--paused')).toBe(false)
+  })
+
+  it('jumps to 100% when the scan finishes with fewer than 500 results and stays blue', async () => {
+    await openRoot()
+    await searchFor('report')
+    expect(fill()!.style.width).toBe('100%')
+    expect(fill()!.classList.contains('scan-progress__fill--paused')).toBe(false)
+  })
+
+  it('stays at its current width after a manual stop, and disappears when leaving the search', async () => {
+    holdAll()
+    await openRoot()
+    await searchFor('rep')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'עצירה' })))
+    expect(fill()!.style.width).toBe('0%')
+
+    await act(async () => fireEvent.click(screen.getByText('go-pc')))
+    expect(fill()).toBeNull()
   })
 })

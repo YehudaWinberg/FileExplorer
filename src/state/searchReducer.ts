@@ -5,6 +5,9 @@ import type { SearchResult } from '../lib/scanTree'
  * idle אינו סטטוס של סשן (אין סשן). מעברים: scanning <-> paused; scanning/paused -> stopped;
  * scanning/paused -> done. מ-stopped ו-done אין חזרה; רק `start` חדש.
  */
+/** תקרת התוצאות (נאכפת בצרכן ב-2.3); משמשת כאן לחישוב רוחב פס ההתקדמות. */
+export const RESULT_CAP = 500
+
 export type SearchStatus = 'scanning' | 'paused' | 'done' | 'stopped'
 
 /** הבעלים היחיד של הדפוס ושל תוצאות החיפוש; סשן אחד (האחרון) בכל רגע. */
