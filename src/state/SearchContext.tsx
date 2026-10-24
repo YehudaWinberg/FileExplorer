@@ -130,6 +130,9 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     [abortRun],
   )
 
+  /** מסמן שהמעבר ל-`search` הנוכחי נוצר על ידי `start` עצמו, ולכן אינו מבטל התחלה ממתינה. */
+  const startedRef = useRef(false)
+
   const start = useCallback(
     (pattern: string) => {
       const here = locationRef.current
@@ -137,6 +140,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       if (!trimmed || (here.type !== 'folder' && here.type !== 'search')) return
       const root = here.type === 'folder' ? here.folder : here.root
       begin(root, trimmed)
+      startedRef.current = true
       explorer.goTo(
         { type: 'search', root, pattern: trimmed },
         { origin: 'result', replace: here.type === 'search' },
@@ -264,10 +268,21 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     [adapter],
   )
 
+  // התחלה ממתינה שייכת למיקום שבו הוקלד הטקסט: ניווט אחר (למשל back/forward) מבטל אותה.
+  useEffect(() => {
+    if (startedRef.current) startedRef.current = false
+    else cancelScheduled()
+  }, [location, cancelScheduled])
+
+  // אובייקט הפעולות יציב ואינו תלוי בסשן, כדי שצרכנים לא ירוצו מחדש בכל תוצאה.
+  const searchActions = useMemo<SearchActions>(
+    () => ({ start, schedule, cancelScheduled, isScheduled, pause, resume, stop, sortByScore }),
+    [start, schedule, cancelScheduled, isScheduled, pause, resume, stop, sortByScore],
+  )
   const details = session && loaded.runId === session.runId ? loaded.byId : NO_DETAILS
   const value = useMemo(
-    () => ({ session, details, actions: { start, schedule, cancelScheduled, isScheduled, pause, resume, stop, sortByScore }, requestDetails }),
-    [session, details, start, schedule, cancelScheduled, isScheduled, pause, resume, stop, sortByScore, requestDetails],
+    () => ({ session, details, actions: searchActions, requestDetails }),
+    [session, details, searchActions, requestDetails],
   )
   return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>
 }

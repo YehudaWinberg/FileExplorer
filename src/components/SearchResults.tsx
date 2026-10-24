@@ -25,13 +25,15 @@ function ResultRow({ entry, parent, score, selected, isNew, onSelect, onOpen, on
   useEffect(() => {
     onVisible(entry)
   }, [entry, onVisible])
+  // הדגל נקבע ברגע ה-mount: שורה שכבר קיימת לא משחזרת את האנימציה בהמשך סריקה.
+  const [animate] = useState(isNew)
   const path = formatResultPath(parent)
   const modified = formatDate(entry.modified)
   return (
     <div
       role="row"
       aria-selected={selected}
-      className={`result-row${selected ? ' result-row--selected' : ''}${isNew ? ' result-row--new' : ''}`}
+      className={`result-row${selected ? ' result-row--selected' : ''}${animate ? ' result-row--new' : ''}`}
       onClick={onSelect}
       onDoubleClick={onOpen}
     >

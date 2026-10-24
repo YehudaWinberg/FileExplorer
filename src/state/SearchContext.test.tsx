@@ -349,3 +349,15 @@ describe('SearchProvider go to location from a result (4.2)', () => {
     await act(async () => release())
   })
 })
+
+
+describe('SearchProvider stable actions', () => {
+  it('keeps the same actions object while results keep arriving', async () => {
+    mount(makeAdapter().adapter)
+    act(() => api.explorer.actions.goTo({ type: 'folder', folder: root }))
+    const before = api.search.actions
+    act(() => api.search.actions.start('txt'))
+    await waitFor(() => expect(api.search.session?.status).toBe('done'))
+    expect(api.search.actions).toBe(before)
+  })
+})

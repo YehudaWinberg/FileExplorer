@@ -609,3 +609,60 @@ describe('return to the results (4.3)', () => {
     expect(resultNames()).toEqual(['photo.jpg'])
   })
 })
+
+
+describe('review patches', () => {
+  it('folder mode: the type filter narrows the rows and the status bar summary', async () => {
+    await openRoot()
+    const rowCount = () => within(screen.getByRole('table', { name: 'תוכן התיקייה' })).getAllByRole('row').length - 1
+    const total = rowCount()
+    expect(total).toBe(4)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'סינון לפי סוג' })))
+    await act(async () => fireEvent.click(screen.getByLabelText('מסמך PDF')))
+    expect(rowCount()).toBe(1)
+    expect(screen.getByText('1 פריטים מוצגים')).toBeTruthy()
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'נקה סינון' })))
+    expect(rowCount()).toBe(total)
+    expect(screen.getByText('4 פריטים מוצגים')).toBeTruthy()
+  })
+
+  it('a pending search is cancelled when going back to another folder', async () => {
+    await openRoot()
+    await act(async () => fireEvent.click(screen.getByText('open-reports')))
+    await flush()
+    await type('rep')
+    await advance(100)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'חזרה' })))
+    await advance(500)
+    await flush()
+    expect(screen.queryByRole('table', { name: 'תוצאות החיפוש' })).toBeNull()
+    expect(within(address()).getByText('Root')).toBeTruthy()
+  })
+
+  it('only rows that arrive during a scan are animated; rows shown after it finished are not', async () => {
+    let release!: () => void
+    heldFolders[reports.id] = new Promise<void>((resolve) => (release = resolve))
+    await openRoot()
+    await searchFor('report')
+    const animated = () => document.querySelectorAll('.result-row--new:not(.result-row--header)').length
+    expect(animated()).toBe(2)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'השהיה' })))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'המשך' })))
+    await act(async () => {
+      release()
+      await heldFolders[reports.id]
+    })
+    await flush()
+    expect(resultNames()).toHaveLength(3)
+
+    await act(async () => fireEvent.doubleClick(within(screen.getByRole('table', { name: 'תוצאות החיפוש' })).getAllByRole('row')[1]))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'מעבר למיקום' })))
+    await flush()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'חזרה' })))
+    await flush()
+    expect(animated()).toBe(0)
+  })
+})

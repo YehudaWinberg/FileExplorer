@@ -4,7 +4,7 @@
 **ספק:** `_bmad-output/planning-artifacts/epics.md` (כל ה-AC), מצב `full`.
 **שכבות:** Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor. כולן הושלמו.
 
-**סיכום:** 1 `decision-needed` (נפתר), 3 `patch` (נשארו כפריטי פעולה), 6 `defer`, 20 נדחו.
+**סיכום:** 1 `decision-needed` (נפתר), 3 `patch` (תוקנו בענף `fix/review-patches`), 6 `defer`, 20 נדחו.
 
 ## Review Findings
 
@@ -12,11 +12,11 @@
 
 - [x] [Review][Decision] `?` מתאים גם לשני תווים: ההתאמה "מכיל" (FR1) גורמת לדפוס `?` להתאים לכל שם לא ריק, בניגוד ל-AC של 1.1. [`src/lib/utils/pattern.ts`] — **הוחלט להשאיר** (התנהגות "מכיל"), חריגה מודעת מה-AC. הבדיקה ב-`pattern.test.ts` מוכיחה "תו בודד" רק על regex מעוגן.
 
-### Patch (פריטי פעולה פתוחים)
+### Patch (תוקנו)
 
-- [ ] [Review][Patch] האנימציה של שורה חדשה משוחזרת על כל השורות הקיימות בהמשך (`paused` → `scanning`), כי `isNew` נגזר מהסטטוס. תיקון: לקבע את `isNew` ברגע ה-mount של השורה. [`src/components/SearchResults.tsx`]
-- [ ] [Review][Patch] התחלת חיפוש ממתינה (debounce) אינה מבוטלת בחזרה/קדימה: הטיימר יורה ומחפש את הדפוס הישן בתיקייה שאליה עברו. תיקון: לבטל `schedule` בכל שינוי מיקום. [`src/state/SearchContext.tsx`]
-- [ ] [Review][Patch] חסרה בדיקה לסינון סוג ב-`FileList` וב-`StatusBar` במצב תיקייה רגילה (אחרי הסרת סינון השם), וה-`actions` של החיפוש נוצר מחדש בכל תוצאה ולכן אפקט `SearchBox` רץ בכל תוצאה. [`src/state/selectors.ts`, `src/components/StatusBar.tsx`, `src/state/SearchContext.tsx`]
+- [x] [Review][Patch] האנימציה של שורה חדשה משוחזרת על כל השורות הקיימות בהמשך (`paused` → `scanning`), כי `isNew` נגזר מהסטטוס. תיקון: לקבע את `isNew` ברגע ה-mount של השורה. [`src/components/SearchResults.tsx`]
+- [x] [Review][Patch] התחלת חיפוש ממתינה (debounce) אינה מבוטלת בחזרה/קדימה: הטיימר יורה ומחפש את הדפוס הישן בתיקייה שאליה עברו. תיקון: לבטל `schedule` בכל שינוי מיקום. [`src/state/SearchContext.tsx`]
+- [x] [Review][Patch] חסרה בדיקה לסינון סוג ב-`FileList` וב-`StatusBar` במצב תיקייה רגילה (אחרי הסרת סינון השם), וה-`actions` של החיפוש נוצר מחדש בכל תוצאה ולכן אפקט `SearchBox` רץ בכל תוצאה. [`src/state/selectors.ts`, `src/components/StatusBar.tsx`, `src/state/SearchContext.tsx`]
 
 ### Defer
 
