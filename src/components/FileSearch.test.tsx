@@ -32,6 +32,7 @@ const listings: Record<string, FileSystemEntry[]> = {
 /** כשה-gate פעיל, קריאות listNames ממתינות עד ש-`release` נקרא (סריקה "בדרך"). */
 let gate: { wait: Promise<void>; release: () => void } | null
 let listNamesCalls: string[]
+let heldFolders: Record<string, Promise<void> | undefined>
 const rootScans = () => listNamesCalls.filter((id) => id === 'root').length
 let pickFolder: ReturnType<typeof vi.fn<FileSystemAdapter['pickFolder']>>
 
@@ -44,6 +45,7 @@ function makeAdapter(): FileSystemAdapter {
     listSubfolders: async () => [],
     listNames: async (f) => {
       listNamesCalls.push(f.id)
+      if (heldFolders[f.id]) await heldFolders[f.id]
       if (gate) await gate.wait
       return listings[f.id] ?? []
     },
@@ -89,6 +91,7 @@ async function openRoot() {
 beforeEach(() => {
   gate = null
   listNamesCalls = []
+  heldFolders = {}
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
 })
 
@@ -523,5 +526,86 @@ describe('choice dialog and go to location (4.2)', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'חזרה' })))
     await flush()
     expect(resultNames()).toEqual(['Report.pdf', 'Reports', 'report-final.pdf'])
+  })
+})
+
+describe('return to the results (4.3)', () => {
+  const resultRow = (name: string) =>
+    within(screen.getByRole('table', { name: 'תוצאות החיפוש' }))
+      .getAllByRole('row')
+      .find((r) => r.querySelector('.ellipsis')?.textContent === name)!
+  const back = () => act(async () => void fireEvent.click(screen.getByRole('button', { name: 'חזרה' })))
+
+  it('UJ-1: search, select, double click, go to location, back returns to the same results without rescanning', async () => {
+    await openRoot()
+    await searchFor('report')
+    const scans = listNamesCalls.length
+    const before = resultNames()
+    expect(before).toEqual(['Report.pdf', 'Reports', 'report-final.pdf'])
+
+    await act(async () => fireEvent.click(resultRow('report-final.pdf')))
+    expect(resultRow('report-final.pdf').getAttribute('aria-selected')).toBe('true')
+    await act(async () => fireEvent.doubleClick(resultRow('report-final.pdf')))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'מעבר למיקום' })))
+    await flush()
+    expect(within(address()).getByText('Reports')).toBeTruthy()
+
+    await back()
+    await flush()
+    // לא לתיקייה הקודמת אלא לאותן תוצאות ואותו דפוס, בלי סריקה חדשה
+    expect(resultNames()).toEqual(before)
+    expect(searchBox().value).toBe('report')
+    expect(listNamesCalls).toHaveLength(scans)
+    expect(screen.getByRole('status').textContent).toBe('הסריקה הסתיימה, נמצאו 3 תוצאות')
+  })
+
+  it('a scan paused by the move comes back as "paused" and can be resumed to completion', async () => {
+    let release!: () => void
+    heldFolders[reports.id] = new Promise<void>((resolve) => (release = resolve))
+    await openRoot()
+    await searchFor('report')
+    expect(resultNames()).toEqual(['Report.pdf', 'Reports'])
+
+    await act(async () => fireEvent.doubleClick(resultRow('Reports')))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'מעבר למיקום' })))
+    await flush()
+    await back()
+    await flush()
+    expect(screen.getByText('מושהה — נמצאו 2')).toBeTruthy()
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'המשך' })))
+    await act(async () => {
+      release()
+      await heldFolders[reports.id]
+    })
+    await flush()
+    expect(resultNames()).toEqual(['Report.pdf', 'Reports', 'report-final.pdf'])
+    expect(listNamesCalls.filter((id) => id === root.id)).toHaveLength(1)
+  })
+
+  it('user navigation clears the saved session, so back/forward never revive stale results', async () => {
+    await openRoot()
+    await searchFor('report')
+    await act(async () => fireEvent.click(screen.getByText('open-reports')))
+    expect(inResults()).toBeNull()
+    await back()
+    await flush()
+    // חזרה אל מיקום החיפוש אחרי ניווט משתמש: סשן חדש לאותו דפוס, לא תוצאות ישנות
+    expect(screen.getByRole('table', { name: 'תוצאות החיפוש' })).toBeTruthy()
+    expect(listNamesCalls.filter((id) => id === root.id).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('a new search replaces the record: back reaches the folder and forward the new search only', async () => {
+    await openRoot()
+    await searchFor('report')
+    await searchFor('photo')
+    expect(resultNames()).toEqual(['photo.jpg'])
+    await back()
+    await flush()
+    expect(within(address()).getByText('Root')).toBeTruthy()
+    expect(inResults()).toBeNull()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'קדימה' })))
+    await flush()
+    expect(resultNames()).toEqual(['photo.jpg'])
   })
 })
