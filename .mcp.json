@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "fileChange": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp/fileChange/index.mjs"],
+      "env": {
+        "FE_ROOT": "${FE_ROOT:-src}"
+      }
+    }
+  }
+}

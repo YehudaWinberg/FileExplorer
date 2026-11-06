@@ -48,3 +48,7 @@
 - עץ התיקיות אינו מסמן או פותח את ה-root של החיפוש כשהמיקום הוא `search` (`FolderTree`, אפקט הפתיחה ב-`ExplorerContext` רק ל-`folder`); low.
 - כשנבחרו כמה תוצאות, `DetailsPane` מציג `בחרו תוצאה כדי לראות תצוגה מקדימה` במקום חיווי בחירה מרובה; low.
 - `?` מתאים לכל שם לא ריק כי ההתאמה היא "מכיל" (FR1), בניגוד ל-AC של 1.1 ("לא לשניים"); הוחלט להשאיר. הבדיקה ב-`pattern.test.ts` מוכיחה "תו בודד" רק על regex מעוגן.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-file-change-mcp.md`
+  summary: אין בדיקה אוטומטית שמריצה את `mcp/fileChange/index.mjs` ומוודאת ש-stdout נקי ושורש ברירת המחדל נכון.
+  evidence: נקודת הכניסה נבדקה ידנית עם `initialize` בלבד; שינוי ל-`console.log` או לנתיב השורש יעבור `npm run check`.
