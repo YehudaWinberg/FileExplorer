@@ -105,7 +105,8 @@ describe('fileChange server', () => {
     expect(res.messages[0].content.text).toContain('חפש לי קבצים שהשתנו ב-3 הימים האחרונים מסוג word בגודל 2MB')
   })
 
-  it('requires days in the prompt', async () => {
-    await expect(client.getPrompt({ name: 'recent-files', arguments: {} })).rejects.toThrow()
+  it('defaults days to 3 in the prompt', async () => {
+    const res = await client.getPrompt({ name: 'recent-files', arguments: {} })
+    expect(res.messages[0].content.text).toContain('ב-3 הימים האחרונים')
   })
 })

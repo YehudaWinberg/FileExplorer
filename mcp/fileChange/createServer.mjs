@@ -53,12 +53,12 @@ export function createServer(root) {
     {
       description: 'חיפוש קבצים שהשתנו לאחרונה לפי ימים, סוג וגודל',
       argsSchema: {
-        days: z.string().describe('מספר ימים'),
+        days: z.string().optional().describe('מספר ימים (ברירת מחדל: 3)'),
         type: z.string().optional().describe('xml / word / excel / image'),
         size: z.string().optional().describe('גודל מינימלי, למשל 2MB'),
       },
     },
-    ({ days, type, size }) => ({
+    ({ days = '3', type, size }) => ({
       messages: [
         {
           role: 'user',
