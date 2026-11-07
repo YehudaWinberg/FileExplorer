@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרוגרמה – {{שם הלקוח}}</title>
+<style>
+  :root {
+    --bg: #f6f4f0; --card: #fff; --ink: #2b2a28; --muted: #7a766f;
+    --accent: #8a6f4e; --accent-soft: #efe8dd; --line: #e4ded4;
+    --warn-bg: #fff4e0; --warn-ink: #8a5a00; --empty: #b0aaa0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: "Segoe UI", Arial, sans-serif; line-height: 1.6; }
+  .page { max-width: 900px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { background: var(--accent); color: #fff; border-radius: 14px; padding: 28px; }
+  header h1 { margin: 0 0 6px; font-size: 1.9rem; }
+  header p { margin: 2px 0; opacity: .92; }
+  .badge { display: inline-block; background: rgba(255,255,255,.2); border-radius: 999px;
+           padding: 2px 12px; font-size: .85rem; margin-bottom: 8px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+            padding: 20px 24px; margin-top: 18px; }
+  h2 { margin: 0 0 12px; font-size: 1.3rem; color: var(--accent);
+       border-bottom: 2px solid var(--accent-soft); padding-bottom: 8px; }
+  ul { margin: 0; padding-inline-start: 22px; }
+  .flags { background: var(--warn-bg); border-color: #f1d9a8; color: var(--warn-ink); }
+  .flags h2 { color: var(--warn-ink); border-color: #f1d9a8; }
+  nav ol { margin: 0; padding-inline-start: 22px; columns: 2; }
+  nav a { color: var(--accent); text-decoration: none; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--line);
+           vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; }
+  td.q { width: 42%; color: var(--muted); }
+  td.empty { color: var(--empty); font-style: italic; }
+  .na { color: var(--muted); font-style: italic; }
+  @media (max-width: 600px) { nav ol { columns: 1; } td.q { width: 45%; } }
+  @media print {
+    body { background: #fff; }
+    section, header { break-inside: avoid; box-shadow: none; }
+    header { background: #fff; color: #000; border: 2px solid var(--accent); }
+    nav { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <span class="badge"><!-- פרוגרמה כללית / פרוגרמה למטבח --></span>
+    <h1>{{שם פרטי}} {{שם משפחה}}</h1>
+    <p>{{כתובת הנכס}}</p>
+    <p>טלפון: {{טלפון}} · מייל: {{מייל}}</p>
+    <p>ת.ז. / ח.פ.: {{מספר}}</p>
+    <p>תאריך: {{תאריך}}</p>
+  </header>
+
+  <section id="summary">
+    <h2>תקציר מנהלים</h2>
+    <ul>
+      <li><!-- נקודת מפתח --></li>
+    </ul>
+  </section>
+
+  <section class="flags" id="flags">
+    <h2>דגלים לתשומת לב</h2>
+    <ul>
+      <li><!-- למשל: ייתכן צורך בחדרי אירוח. אם אין: אין דגלים --></li>
+    </ul>
+  </section>
+
+  <section id="checks">
+    <h2>ממצאי בדיקה</h2>
+    <ul>
+      <li><!-- סתירה ← תשובת הלקוח ← החלטה. אם אין: לא נמצאו סתירות --></li>
+    </ul>
+  </section>
+
+  <nav>
+    <section>
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#topic-1"><!-- שם נושא --></a></li>
+      </ol>
+    </section>
+  </nav>
+
+  <!-- חוזרים על הסעיף הזה לכל נושא שנשאל; id מספרי לפי הנושא -->
+  <section id="topic-1">
+    <h2><!-- שם הנושא --></h2>
+    <table>
+      <tr><th>שאלה</th><th>תשובה</th></tr>
+      <tr><td class="q"><!-- שאלה --></td><td><!-- תשובה --></td></tr>
+      <tr><td class="q"><!-- שאלה שלא נענתה --></td><td class="empty">לא צוין</td></tr>
+    </table>
+  </section>
+
+  <!-- נושא שדולג כולו: <section><h2>שם</h2><p class="na">לא רלוונטי</p></section> -->
+
+  <section id="open">
+    <h2>לא נענה / טרם הוחלט</h2>
+    <ul>
+      <li><!-- נושא: שאלה --></li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
