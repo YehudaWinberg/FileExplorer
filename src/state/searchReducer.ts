@@ -78,6 +78,7 @@ export function searchReducer(state: SearchState, action: SearchAction): SearchS
 
 /** תצוגה נגזרת: ציון יורד במיון יציב, ובשוויון הפריט הרדוד יותר קודם (AD-10). */
 export function orderResults(results: SearchResult[], sortedByScore: boolean): SearchResult[] {
+  
   if (!sortedByScore) return results
   return [...results].sort((a, b) => b.score - a.score || a.depth - b.depth)
 }

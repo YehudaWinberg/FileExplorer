@@ -14,7 +14,7 @@ import { useLineCounts, type LineCount } from './useLineCounts'
 const COLUMNS: Array<{ key: SortKey; label: string; className: string }> = [
   { key: 'name', label: 'שם', className: 'col-name' },
   { key: 'modified', label: 'תאריך שינוי', className: 'col-date' },
-  { key: 'elapsed', label: 'כמה זמן עבר מהשינוי האחרון', className: 'col-elapsed' },
+  { key: 'elapsed', label: 'זמן מהשינוי האחרון', className: 'col-elapsed' },
   { key: 'type', label: 'סוג', className: 'col-type' },
   { key: 'size', label: 'גודל', className: 'col-size' },
 ]
