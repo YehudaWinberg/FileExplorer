@@ -12,7 +12,9 @@
       {
         "allowConstantExport": true
       }
-    ]
+    ],
+    "eqeqeq": "warn",
+    
   },
   "overrides": [
     {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import type { FileSystemEntry } from '../lib/models/entry'
 import type { SortKey } from '../lib/models/sort'
-import { useExplorer } from '../state/ExplorerContext'
+import { useExplorer } from '../state/useExplorer'
 import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
 import { formatCount, formatDate, formatElapsedDays, formatSize } from '../lib/utils/format'
 import { SCALE_GRADIENT, isLargeFile, scaleColor, sizeScalePosition } from '../lib/utils/largeFiles'

@@ -7,7 +7,7 @@ import { StatusBar } from './components/StatusBar'
 import { TitleBar } from './components/TitleBar'
 import { Toolbar } from './components/Toolbar'
 import { UnsupportedBrowser } from './components/UnsupportedBrowser'
-import { useExplorer } from './state/ExplorerContext'
+import { useExplorer } from './state/useExplorer'
 
 export default function App() {
   const { state, location, actions, supported } = useExplorer()

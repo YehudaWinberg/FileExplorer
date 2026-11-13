@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, waitFor } from '@testing-library/react'
-import { StrictMode } from 'react'
+import { StrictMode, useEffect } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { FileSystemAdapter } from '../lib/fileSystem'
 import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
-import { ExplorerProvider, useExplorer } from './ExplorerContext'
+import { ExplorerProvider } from './ExplorerContext'
+import { useExplorer } from './useExplorer'
 import { currentLocation } from './explorerReducer'
-import { SearchProvider, useSearch } from './SearchContext'
+import { SearchProvider } from './SearchContext'
+import { useSearch } from './useSearch'
 
 const root: FolderRef = { id: 'root', name: 'Root', parent: null }
 const sub: FolderRef = { id: 'root/sub', name: 'sub', parent: root }
@@ -46,7 +48,11 @@ function makeAdapter(gate?: { wait: Promise<void> }) {
 type Api = { explorer: ReturnType<typeof useExplorer>; search: ReturnType<typeof useSearch> }
 let api: Api
 function Probe() {
-  api = { explorer: useExplorer(), search: useSearch() }
+  const explorer = useExplorer()
+  const search = useSearch()
+  useEffect(() => {
+    api = { explorer, search }
+  })
   return null
 }
 

@@ -14,6 +14,11 @@ export const STOPPED_MESSAGE = 'הסריקה הופסקה — ייתכנו תו�
 
 export type SearchStatus = 'scanning' | 'paused' | 'done' | 'stopped' | 'capped'
 
+/** רוחב הפס באחוזים: סיום ממלא ל-100%, עצירה והשהיה נשארות ברוחב הנוכחי. */
+export function progressPercent(status: SearchStatus, count: number): number {
+  return status === 'done' ? 100 : Math.min(count / RESULT_CAP, 1) * 100
+}
+
 /** הבעלים היחיד של הדפוס ושל תוצאות החיפוש; סשן אחד (האחרון) בכל רגע. */
 export interface SearchSession {
   runId: number

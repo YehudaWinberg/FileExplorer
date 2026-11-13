@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { useEffect } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { FileSystemAdapter } from '../lib/fileSystem'
 import type { FileSystemEntry, FolderRef } from '../lib/models/entry'
 import { jpegWithExif } from '../lib/testFixtures'
-import { ExplorerProvider, useExplorer } from '../state/ExplorerContext'
-import { SearchProvider, useSearch } from '../state/SearchContext'
+import { ExplorerProvider } from '../state/ExplorerContext'
+import { useExplorer } from '../state/useExplorer'
+import { SearchProvider } from '../state/SearchContext'
+import { useSearch } from '../state/useSearch'
 import { DetailsPane } from './DetailsPane'
 import { SearchResults } from './SearchResults'
 import { StatusBar } from './StatusBar'
@@ -47,7 +50,11 @@ function makeAdapter() {
 
 let api: { explorer: ReturnType<typeof useExplorer>; search: ReturnType<typeof useSearch> }
 function Probe() {
-  api = { explorer: useExplorer(), search: useSearch() }
+  const explorer = useExplorer()
+  const search = useSearch()
+  useEffect(() => {
+    api = { explorer, search }
+  })
   return null
 }
 

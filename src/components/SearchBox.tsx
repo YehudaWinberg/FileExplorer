@@ -1,19 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { normalizePattern } from '../lib/models/entry'
-import { useExplorer } from '../state/ExplorerContext'
-import { useSearch } from '../state/SearchContext'
-import { CAPPED_MESSAGE, RESULT_CAP, type SearchStatus } from '../state/searchReducer'
+import { useExplorer } from '../state/useExplorer'
+import { useSearch } from '../state/useSearch'
+import { CAPPED_MESSAGE, progressPercent } from '../state/searchReducer'
 import { PauseIcon, ResumeIcon, SearchIcon, StopIcon } from './icons'
 
 const LABEL = 'חיפוש בתיקייה הנוכחית ובתיקיות שבתוכה'
 const STOP_LABEL = 'עצירה'
 const PAUSE_LABEL = 'השהיה'
 const RESUME_LABEL = 'המשך'
-
-/** רוחב הפס באחוזים: סיום ממלא ל-100%, עצירה והשהיה נשארות ברוחב הנוכחי. */
-export function progressPercent(status: SearchStatus, count: number): number {
-  return status === 'done' ? 100 : Math.min(count / RESULT_CAP, 1) * 100
-}
 
 /**
  * תיבת החיפוש בשורת הכתובת. הטקסט הוא טיוטה מקומית בלבד; הדפוס שורד ב-`SearchSession`.
@@ -30,12 +25,16 @@ export function SearchBox({ onFocusChange }: { onFocusChange?: (focused: boolean
   const active = location.type === 'search' && (session?.status === 'scanning' || paused)
 
   // מיקום חדש (ניווט, back/forward): התיבה משקפת את הדפוס של החיפוש, או מתרוקנת מחוץ לחיפוש.
+  // מחושב בזמן render (החלפת מיקום) ולא באפקט, כדי לא לגרור רינדור נוסף.
   const locationPattern = location.type === 'search' ? location.pattern : ''
-  useEffect(() => {
+  const [syncedLocation, setSyncedLocation] = useState(location)
+  if (syncedLocation !== location) {
+    setSyncedLocation(location)
     // המשתמש באמצע הקלדה (יש התחלת חיפוש ממתינה): לא דורסים את הטיוטה.
-    if (actions.isScheduled()) return
-    setDraft((current) => (normalizePattern(current) === normalizePattern(locationPattern) ? current : locationPattern))
-  }, [location, locationPattern, actions])
+    if (!actions.isScheduled() && normalizePattern(draft) !== normalizePattern(locationPattern)) {
+      setDraft(locationPattern)
+    }
+  }
 
   const change = (value: string) => {
     setDraft(value)

@@ -1,5 +1,5 @@
 import type { FolderRef } from '../lib/models/entry'
-import { useExplorer } from '../state/ExplorerContext'
+import { useExplorer } from '../state/useExplorer'
 import { ChevronIcon, FolderIcon } from './icons'
 
 function TreeNode({ folder, level }: { folder: FolderRef; level: number }) {

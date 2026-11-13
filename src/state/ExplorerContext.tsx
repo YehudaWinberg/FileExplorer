@@ -1,66 +1,25 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useReducer,
   useRef,
-  type MutableRefObject,
   type ReactNode,
 } from 'react'
 import { FsError, type FileSystemAdapter } from '../lib/fileSystem'
-import type { FolderRef, Location, SpecialFolderKey } from '../lib/models/entry'
+import type { FolderRef, Location } from '../lib/models/entry'
 import { folderChain } from '../lib/models/entry'
-import type { SortKey } from '../lib/models/sort'
 import {
   currentLocation,
   explorerReducer,
   initialState,
-  type ExplorerState,
 } from './explorerReducer'
-
-/** `user`: ניווט יזום של המשתמש (מנקה חיפוש). `result`: מעבר מתוצאה או התחלת חיפוש (לא מנקה). */
-export type NavigationOrigin = 'user' | 'result'
-
-export interface GoToOptions {
-  origin?: NavigationOrigin
-  /** מחליף את הרשומה הנוכחית בהיסטוריה וחותך forward. */
-  replace?: boolean
-  /** מזהה פריט שיסומן במיקום החדש (למשל קובץ שאליו עוברים מתוצאה). */
-  select?: string
-}
-
-export interface ExplorerActions {
-  pickFolder: (special?: SpecialFolderKey) => Promise<void>
-  /** שער הניווט היחיד; ברירת המחדל `origin: 'user'`. */
-  goTo: (location: Location, options?: GoToOptions) => void
-  navigate: (location: Location) => void
-  openFolder: (folder: FolderRef) => void
-  back: () => void
-  forward: () => void
-  up: () => void
-  refresh: () => void
-  select: (id: string, ctrl: boolean, shift: boolean, orderedIds: string[]) => void
-  clearSelection: () => void
-  sortBy: (key: SortKey) => void
-  toggleTypeFilter: (label: string) => void
-  clearTypeFilter: () => void
-  toggleNode: (folder: FolderRef) => void
-  dismissNotice: () => void
-}
-
-interface ExplorerContextValue {
-  state: ExplorerState
-  location: Location
-  actions: ExplorerActions
-  adapter: FileSystemAdapter
-  supported: boolean
-  /** ה-SearchProvider רושם כאן ניקוי חיפוש שרץ בכל ניווט מסוג `user`. */
-  userNavigationHook: MutableRefObject<(() => void) | null>
-}
-
-const ExplorerContext = createContext<ExplorerContextValue | null>(null)
+import {
+  ExplorerContext,
+  type ExplorerActions,
+  type ExplorerContextValue,
+  type GoToOptions,
+} from './useExplorer'
 
 function describeError(error: unknown): string {
   return error instanceof FsError ? error.message : 'אירעה שגיאה בלתי צפויה.'
@@ -77,7 +36,7 @@ export function ExplorerProvider({
   const location = currentLocation(state)
   const requestRef = useRef(0)
   const stateRef = useRef(state)
-  const userNavigationHook = useRef<(() => void) | null>(null)
+  const userNavigationHookRef = useRef<(() => void) | null>(null)
   useEffect(() => {
     stateRef.current = state
   })
@@ -121,8 +80,15 @@ export function ExplorerProvider({
     }
   }, [location, loadChildren])
 
+  const setUserNavigationHook = useCallback((hook: () => void) => {
+    userNavigationHookRef.current = hook
+    return () => {
+      if (userNavigationHookRef.current === hook) userNavigationHookRef.current = null
+    }
+  }, [])
+
   const goTo = useCallback((next: Location, options: GoToOptions = {}) => {
-    if ((options.origin ?? 'user') === 'user') userNavigationHook.current?.()
+    if ((options.origin ?? 'user') === 'user') userNavigationHookRef.current?.()
     dispatch({ type: 'navigate', location: next, replace: options.replace, select: options.select })
   }, [])
   const navigate = useCallback((next: Location) => goTo(next), [goTo])
@@ -154,7 +120,7 @@ export function ExplorerProvider({
       refresh: () => {
         const current = stateRef.current
         const here = currentLocation(current)
-        userNavigationHook.current?.()
+        userNavigationHookRef.current?.()
         dispatch({ type: 'refresh' })
         if (here.type === 'folder' && current.expanded[here.folder.id]) void loadChildren(here.folder)
       },
@@ -174,23 +140,17 @@ export function ExplorerProvider({
     [adapter, goTo, navigate, loadChildren],
   )
 
-  const value = useMemo(
+  const value = useMemo<ExplorerContextValue>(
     () => ({
       state,
       location,
       actions,
       adapter,
       supported: adapter.isSupported(),
-      userNavigationHook,
+      setUserNavigationHook,
     }),
-    [state, location, actions, adapter],
+    [state, location, actions, adapter, setUserNavigationHook],
   )
 
   return <ExplorerContext.Provider value={value}>{children}</ExplorerContext.Provider>
-}
-
-export function useExplorer(): ExplorerContextValue {
-  const value = useContext(ExplorerContext)
-  if (!value) throw new Error('useExplorer must be used inside ExplorerProvider')
-  return value
 }

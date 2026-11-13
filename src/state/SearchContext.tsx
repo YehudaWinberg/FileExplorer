@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useReducer,
@@ -12,43 +10,12 @@ import {
 import { normalizePattern, type FileSystemEntry, type FolderRef } from '../lib/models/entry'
 import { scanTree } from '../lib/scanTree'
 import { compilePattern } from '../lib/utils/pattern'
-import { useExplorer } from './ExplorerContext'
-import { RESULT_CAP, searchReducer, type SearchSession } from './searchReducer'
-
-export interface SearchActions {
-  /** מתחיל חיפוש מהמיקום הנוכחי (`folder`, או `search` להחלפה). במקומות אחרים לא עושה דבר. */
-  start: (pattern: string) => void
-  /** כמו `start` אחרי `SEARCH_DEBOUNCE_MS` ללא קריאה נוספת; קריאה חדשה מאפסת את הטיימר. */
-  schedule: (pattern: string) => void
-  /** מבטל התחלת חיפוש ממתינה (למשל כשהתיבה התרוקנה). */
-  cancelScheduled: () => void
-  /** האם מחכה התחלת חיפוש (המשתמש באמצע הקלדה). */
-  isScheduled: () => boolean
-  /** משהה: לא נקרא `next()` נוסף, והתוצאות שנמצאו נשמרות. רק מ-`scanning`. */
-  pause: () => void
-  /** ממשיך מאותה נקודה בלי סריקה מחדש. רק מ-`paused`. */
-  resume: () => void
-  /** עוצר סופית (גם מהשהיה); התוצאות שנמצאו נשמרות. */
-  stop: () => void
-  /** ממיין לפי קרבה (תצוגה נגזרת); לא זמין בזמן `scanning`. */
-  sortByScore: () => void
-}
+import { RESULT_CAP, searchReducer } from './searchReducer'
+import { useExplorer } from './useExplorer'
+import { SearchContext, type EntryDetails, type SearchActions, type SearchContextValue } from './useSearch'
 
 export const SEARCH_DEBOUNCE_MS = 300
 
-/** גודל ותאריך נטענים רק לתוצאות שמוצגות (הסריקה עצמה לא קוראת קבצים). */
-export type EntryDetails = Pick<FileSystemEntry, 'size' | 'modified' | 'mimeType' | 'unreadable'>
-
-interface SearchContextValue {
-  session: SearchSession | null
-  /** פרטים שנטענו לתוצאות הסשן הנוכחי, לפי מזהה פריט. */
-  details: Record<string, EntryDetails>
-  actions: SearchActions
-  /** טוען פעם אחת גודל ותאריך של תוצאה (קובץ בלבד). */
-  requestDetails: (entry: FileSystemEntry) => void
-}
-
-const SearchContext = createContext<SearchContextValue | null>(null)
 const NO_DETAILS: Record<string, EntryDetails> = {}
 
 /**
@@ -56,7 +23,7 @@ const NO_DETAILS: Record<string, EntryDetails> = {}
  * והסשן מתאים לו ועדיין לא הופעלה עבורו ריצה.
  */
 export function SearchProvider({ children }: { children: ReactNode }) {
-  const { adapter, location, actions: explorer, userNavigationHook } = useExplorer()
+  const { adapter, location, actions: explorer, setUserNavigationHook } = useExplorer()
   const [session, dispatch] = useReducer(searchReducer, null)
   const [loaded, setLoaded] = useState<{ runId: number; byId: Record<string, EntryDetails> }>({ runId: 0, byId: {} })
   const requestedRef = useRef<{ runId: number; ids: Set<string> }>({ runId: 0, ids: new Set() })
@@ -97,17 +64,16 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   }, [openResumeGate])
 
   // ניווט יזום של המשתמש: ניקוי הסשן וביטול הריצה באותו אירוע (React מאחד לרינדור אחד).
-  useEffect(() => {
-    userNavigationHook.current = () => {
-      cancelScheduled()
-      abortRun()
-      launchedRunRef.current = null
-      dispatch({ type: 'clear' })
-    }
-    return () => {
-      userNavigationHook.current = null
-    }
-  }, [userNavigationHook, abortRun, cancelScheduled])
+  useEffect(
+    () =>
+      setUserNavigationHook(() => {
+        cancelScheduled()
+        abortRun()
+        launchedRunRef.current = null
+        dispatch({ type: 'clear' })
+      }),
+    [setUserNavigationHook, abortRun, cancelScheduled],
+  )
 
   // בעת הסרה (כולל סימולציית StrictMode) מבטלים ריצה פעילה ומאפשרים הפעלה מחדש.
   useEffect(
@@ -280,20 +246,9 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     [start, schedule, cancelScheduled, isScheduled, pause, resume, stop, sortByScore],
   )
   const details = session && loaded.runId === session.runId ? loaded.byId : NO_DETAILS
-  const value = useMemo(
+  const value = useMemo<SearchContextValue>(
     () => ({ session, details, actions: searchActions, requestDetails }),
     [session, details, searchActions, requestDetails],
   )
   return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>
-}
-
-/** כמו `useSearch`, אך מחזיר null מחוץ ל-SearchProvider (רכיבים משותפים כמו StatusBar). */
-export function useSearchOptional(): SearchContextValue | null {
-  return useContext(SearchContext)
-}
-
-export function useSearch(): SearchContextValue {
-  const value = useContext(SearchContext)
-  if (!value) throw new Error('useSearch must be used inside SearchProvider')
-  return value
 }

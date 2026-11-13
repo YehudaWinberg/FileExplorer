@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { FsError } from '../lib/fileSystem'
 import type { FileSystemEntry } from '../lib/models/entry'
 import { countLines, isTxtFile } from '../lib/utils/lineCount'
-import { useExplorer } from '../state/ExplorerContext'
+import { useExplorer } from '../state/useExplorer'
 
 export type LineCount =
   | { status: 'loading' }

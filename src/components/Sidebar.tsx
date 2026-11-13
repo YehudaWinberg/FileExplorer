@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Location } from '../lib/models/entry'
 import { sameLocation } from '../lib/models/entry'
-import { useExplorer } from '../state/ExplorerContext'
+import { useExplorer } from '../state/useExplorer'
 import { FolderTree } from './FolderTree'
 import { HomeIcon, PcIcon, StarIcon } from './icons'
 import { SPECIAL_FOLDERS } from './specialFolders'

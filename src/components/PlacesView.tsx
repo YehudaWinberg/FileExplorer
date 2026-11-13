@@ -1,5 +1,5 @@
 import type { FolderRef } from '../lib/models/entry'
-import { useExplorer } from '../state/ExplorerContext'
+import { useExplorer } from '../state/useExplorer'
 import { EmptyState } from './EmptyState'
 import { FolderIcon } from './icons'
 import { SPECIAL_FOLDERS } from './specialFolders'

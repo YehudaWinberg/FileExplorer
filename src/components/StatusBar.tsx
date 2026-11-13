@@ -1,6 +1,6 @@
 import { formatTotalGb } from '../lib/utils/format'
 import { summarizeEntries } from '../lib/utils/summary'
-import { useExplorer } from '../state/ExplorerContext'
+import { useExplorer } from '../state/useExplorer'
 import { useVisibleEntries } from '../state/selectors'
 
 export function StatusBar() {

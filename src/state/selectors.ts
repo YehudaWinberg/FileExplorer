@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import type { FileSystemEntry } from '../lib/models/entry'
 import { filterByTypes } from '../lib/utils/typeFilter'
-import { useExplorer } from './ExplorerContext'
-import { useSearchOptional, type EntryDetails } from './SearchContext'
+import { useExplorer } from './useExplorer'
+import { useSearchOptional, type EntryDetails } from './useSearch'
 import { orderResults } from './searchReducer'
 
 export function withDetails(entry: FileSystemEntry, details: Record<string, EntryDetails>): FileSystemEntry {

@@ -1,5 +1,5 @@
 import { folderChain, type FolderRef, type Location } from '../lib/models/entry'
-import { useExplorer } from '../state/ExplorerContext'
+import { useExplorer } from '../state/useExplorer'
 import { ChevronIcon, FolderIcon, HomeIcon, PcIcon, StarIcon } from './icons'
 
 function leadingIcon(location: Location) {

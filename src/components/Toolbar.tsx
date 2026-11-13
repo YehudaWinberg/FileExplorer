@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useExplorer } from '../state/ExplorerContext'
+import { useExplorer } from '../state/useExplorer'
 import { Breadcrumbs } from './Breadcrumbs'
 import { BackIcon, FolderPlusIcon, ForwardIcon, RefreshIcon, UpIcon } from './icons'
 import { SearchBox } from './SearchBox'
