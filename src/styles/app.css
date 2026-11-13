@@ -705,11 +705,6 @@ button.crumb:hover {
   border-top: 6px solid;
 }
 
-.size-scale__text {
-  white-space: nowrap;
-  font-size: 12px;
-}
-
 .sort {
   flex: none;
 }

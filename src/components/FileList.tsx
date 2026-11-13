@@ -53,7 +53,6 @@ function LargeFileCell({ entry }: { entry: FileSystemEntry }) {
           />
         </div>
       </div>
-      <span className="size-scale__text">{formatSize(entry.size)}</span>
     </div>
   )
 }
