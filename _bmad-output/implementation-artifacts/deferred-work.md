@@ -52,3 +52,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-file-change-mcp.md`
   summary: אין בדיקה אוטומטית שמריצה את `mcp/fileChange/index.mjs` ומוודאת ש-stdout נקי ושורש ברירת המחדל נכון.
   evidence: נקודת הכניסה נבדקה ידנית עם `initialize` בלבד; שינוי ל-`console.log` או לנתיב השורש יעבור `npm run check`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-file-guard-hook.md`
+  summary: העברת ה-hook הקיים (`bash-guard.mjs`, `guard-rules.mjs`, `bash-guard.test.mjs`, `samples/`) ל-`.claude/hooks/critical/` ועדכון הנתיב ב-`settings.json` ובבדיקה.
+  evidence: פוצל ממפרט ה-file-guard כי זו מטרה עצמאית (ארגון תיקיות בלבד, בלי שינוי לוגיקה); ה-file-guard לא תלוי בה.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-file-guard-hook.md`
+  summary: הגנה על סקריפטי ה-hook עצמם (`.claude/hooks/**`) מפני עריכה על ידי ה-agent.
+  evidence: ה-agent יכול לערוך `file-guard.mjs`/`guard-files.mjs`/`bash-guard.mjs` ולנטרל את ההגנה; החשיפה קיימת גם ל-bash-guard ולכן לא נגרמה על ידי השינוי. דורש החלטת intent (הרחבת הקבצים המוגנים).

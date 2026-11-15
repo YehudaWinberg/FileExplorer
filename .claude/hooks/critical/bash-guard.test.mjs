@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { checkCommand } from './guard-rules.mjs'
 
-const script = join(process.cwd(), '.claude', 'hooks', 'bash-guard.mjs')
+const script = join(process.cwd(), '.claude', 'hooks', 'critical', 'bash-guard.mjs')
 
 function runHook(input) {
   return spawnSync(process.execPath, [script], { input, encoding: 'utf8' })
