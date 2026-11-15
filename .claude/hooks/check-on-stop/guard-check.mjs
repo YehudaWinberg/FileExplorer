@@ -1,7 +1,6 @@
 // לוגיקה טהורה (בלי I/O) ל-hook מסוג Stop: האם לחסום סיום בגלל כשל ב-npm run check.
 // הטבלה המלאה: _bmad-output/specs/spec-check-on-stop-hook/decision-table.md
 // fail open: כל מה שאינו כשל תלוי-סוכן ברור מאפשר סיום (עם systemMessage כשיש מה לדווח).
-
 const TAIL_CHARS = 3000
 
 // סימנים סביבתיים. כשהם מופיעים לצד סימן תלוי-סוכן, הסביבתי גובר.

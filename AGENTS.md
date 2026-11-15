@@ -15,11 +15,6 @@
 - `promt/` — הפרומטים שיצרו כל משימה. פרומט של משימה חדשה נשמר שם.
 - `.claude/rules/` — כללים נוספים; `lib-operations.md` נטען בעבודה על `src/lib/**`.
 
-## Running and verifying
-
-- אחרי כל שינוי בקבצים: `npm run check` (typecheck + lint + tests). אם נכשל, לתקן ולהריץ שוב. אם אי אפשר, לדווח בכנות על הכשל. אין צורך להריץ כשלא שונו קבצים.
-- `npm run dev` פותח גם דפדפן במסך מלא (`scripts/open-fullscreen.mjs`). להרצת שרת Vite בלבד: `npm run web`.
-- Node 20 ומעלה; בדיקה ידנית רק ב-Chrome או Edge (File System Access API).
 
 ## Conventions that differ from defaults
 

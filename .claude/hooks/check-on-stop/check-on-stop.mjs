@@ -1,9 +1,19 @@
 // hook מסוג Stop: מריץ npm run check כשיש שינוי תחת src/ וחוסם סיום פעם אחת על כשל שהסוכן יכול לתקן.
 // fail open: כל כשל, כולל קלט פגום או חריגה, מאשר סיום (exit 0) עם systemMessage.
 import { spawnSync } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { evaluateStop, failOpenMessage } from './guard-check.mjs'
 
 const CHECK_TIMEOUT_MS = 120_000
+
+// ב-Windows אות כונן קטנה בנתיב (c:\...) גורמת ל-vitest להיכשל; realpath.native מחזיר את הכתיב הקנוני.
+function normalizeDir(dir) {
+  try {
+    return realpathSync.native(dir)
+  } catch {
+    return dir
+  }
+}
 
 function emit(obj) {
   process.stdout.write(`${JSON.stringify(obj)}\n`, () => process.exit(0))
@@ -41,7 +51,7 @@ process.stdin.on('end', () => {
       return emit(failOpenMessage('קלט ה-hook אינו JSON תקין'))
     }
     if (input === null || typeof input !== 'object') return emit(failOpenMessage('קלט ה-hook אינו אובייקט'))
-    const cwd = process.env.CLAUDE_PROJECT_DIR || (typeof input.cwd === 'string' ? input.cwd : process.cwd())
+    const cwd = normalizeDir(process.env.CLAUDE_PROJECT_DIR || (typeof input.cwd === 'string' ? input.cwd : process.cwd()))
     emit(evaluateStop({ stopHookActive: input.stop_hook_active, srcChanged: hasSrcChanges(cwd), runCheck: () => runCheck(cwd) }))
   } catch (error) {
     emit(failOpenMessage(`שגיאה פנימית (${error instanceof Error ? error.message : 'לא ידועה'})`))
