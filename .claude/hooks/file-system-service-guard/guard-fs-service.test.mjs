@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { checkToolCall, findFsApi, isUnderComponents } from './guard-fs-service.mjs'
+import { checkToolCall, findFsApi, isOutsideLib } from './guard-fs-service.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const script = join(here, 'fs-service-guard.mjs')
@@ -18,14 +18,22 @@ function runHook(input) {
 }
 
 describe('זיהוי נתיב', () => {
-  it('רק קבצים תחת src/components', () => {
-    expect(isUnderComponents('c:\\FileExplorer\\src\\components\\Toolbar.tsx')).toBe(true)
-    expect(isUnderComponents('src/components/deep/X.tsx')).toBe(true)
-    expect(isUnderComponents('src/lib/BrowserFileSystemAdapter.ts')).toBe(false)
-    expect(isUnderComponents('src/components.ts')).toBe(false)
-    expect(isUnderComponents('other/components/X.tsx')).toBe(false)
-    expect(isUnderComponents('.claude/hooks/components/X.mjs')).toBe(false)
-    expect(isUnderComponents(undefined)).toBe(false)
+  it('כל קובץ תחת src מחוץ ל-src/lib אסור', () => {
+    expect(isOutsideLib('c:\\FileExplorer\\src\\components\\Toolbar.tsx')).toBe(true)
+    expect(isOutsideLib('src/components/deep/X.tsx')).toBe(true)
+    expect(isOutsideLib('src/state/ExplorerContext.tsx')).toBe(true)
+    expect(isOutsideLib('src/main.tsx')).toBe(true)
+    expect(isOutsideLib('c:\\FileExplorer\\FileExplorer\\src\\App.tsx')).toBe(true)
+    expect(isOutsideLib('c:/src/proj/src/state/X.ts')).toBe(true)
+  })
+  it('src/lib וקבצים מחוץ ל-src מותרים', () => {
+    expect(isOutsideLib('src/lib/BrowserFileSystemAdapter.ts')).toBe(false)
+    expect(isOutsideLib('c:\\FileExplorer\\FileExplorer\\src\\lib\\deep\\X.ts')).toBe(false)
+    expect(isOutsideLib('c:/src/proj/src/lib/X.ts')).toBe(false)
+    expect(isOutsideLib('scripts/open-fullscreen.mjs')).toBe(false)
+    expect(isOutsideLib('.claude/hooks/components/X.mjs')).toBe(false)
+    expect(isOutsideLib('mysrc/state/X.ts')).toBe(false)
+    expect(isOutsideLib(undefined)).toBe(false)
   })
 })
 
@@ -39,14 +47,20 @@ describe('זיהוי File System API', () => {
 })
 
 describe('checkToolCall', () => {
-  it('Write ו-Edit ב-components עם API ישיר מדווחים', () => {
+  it('Write ו-Edit מחוץ ל-lib עם API ישיר מדווחים (components, state, main)', () => {
     const w = checkToolCall(write('src/components/A.tsx', 'window.showDirectoryPicker()'))
     expect(w.violation).toBe(true)
     expect(w.reason).toContain('src/lib')
     const e = checkToolCall({ tool_name: 'Edit', tool_input: { file_path: 'src/components/A.tsx', new_string: 'x.getFileHandle(n)' } })
     expect(e.violation).toBe(true)
+    expect(checkToolCall(write('src/state/S.tsx', 'window.showDirectoryPicker()')).violation).toBe(true)
+    expect(checkToolCall(write('src/main.tsx', 'new FileSystemDirectoryHandle()')).violation).toBe(true)
+    const m = { tool_name: 'MultiEdit', tool_input: { file_path: 'src/state/S.tsx', edits: [{ new_string: 'a' }, { new_string: 'h.createWritable()' }] } }
+    expect(checkToolCall(m).violation).toBe(true)
   })
-  it('קובץ נקי, קובץ מחוץ ל-components וכלי אחר אינם מדווחים', () => {
+  it('קובץ נקי, קובץ ב-lib או מחוץ ל-src וכלי אחר אינם מדווחים', () => {
+    expect(checkToolCall(write('src/state/S.tsx', 'adapter.pickFolder()')).violation).toBe(false)
+    expect(checkToolCall(write('scripts/x.mjs', 'showDirectoryPicker()')).violation).toBe(false)
     expect(checkToolCall(write('src/components/A.tsx', 'const { adapter } = useExplorer()')).violation).toBe(false)
     expect(checkToolCall(write('src/lib/BrowserFileSystemAdapter.ts', 'window.showDirectoryPicker()')).violation).toBe(false)
     expect(checkToolCall({ tool_name: 'Read', tool_input: { file_path: 'src/components/A.tsx' } }).violation).toBe(false)
@@ -60,7 +74,16 @@ describe('האדפטר (תהליך אמיתי)', () => {
     expect(r.status).toBe(0)
     const out = JSON.parse(r.stdout)
     expect(out.decision).toBe('block')
-    expect(out.reason).toContain('components')
+    expect(out.reason).toContain('src/lib')
+  })
+  it('הפרה ב-state מחזירה decision block', () => {
+    const r = runHook(JSON.stringify(write('src/state/S.tsx', 'showDirectoryPicker()')))
+    expect(JSON.parse(r.stdout).decision).toBe('block')
+  })
+  it('כתיבה ב-lib: פלט ריק ו-exit 0', () => {
+    const r = runHook(JSON.stringify(write('src/lib/A.ts', 'showDirectoryPicker()')))
+    expect(r.status).toBe(0)
+    expect(r.stdout).toBe('')
   })
   it('כתיבה תקינה: פלט ריק ו-exit 0', () => {
     const r = runHook(JSON.stringify(write('src/components/A.tsx', 'const a = 1')))

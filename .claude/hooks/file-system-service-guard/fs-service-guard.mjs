@@ -1,4 +1,4 @@
-// hook מסוג PostToolUse על Edit|Write: מחזיר לסוכן משוב כשנכתבה גישה ישירה ל-File System API תחת components.
+// hook מסוג PostToolUse על Edit|Write: מחזיר לסוכן משוב כשנכתבה גישה ישירה ל-File System API בקובץ תחת src מחוץ ל-src/lib.
 // הכתיבה כבר בוצעה, לכן זה משוב (decision: block) ולא חסימה. כשל פנימי מדווח לסוכן ולא נבלע.
 import { checkToolCall } from './guard-fs-service.mjs'
 
@@ -11,7 +11,7 @@ function emit(reason) {
 
 let raw = ''
 process.stdin.setEncoding('utf8')
-process.stdin.on('error', () => emit('hook בדיקת components: שגיאת קריאה מ-stdin, הכתיבה לא נבדקה.'))
+process.stdin.on('error', () => emit('hook בדיקת fs-service-guard: שגיאת קריאה מ-stdin, הכתיבה לא נבדקה.'))
 process.stdin.on('data', (chunk) => {
   raw += chunk
 })
@@ -21,6 +21,6 @@ process.stdin.on('end', () => {
     if (violation) emit(reason)
     else process.exit(0)
   } catch (error) {
-    emit(`hook בדיקת components: שגיאה (${error instanceof Error ? error.message : 'לא ידועה'}), הכתיבה לא נבדקה.`)
+    emit(`hook בדיקת fs-service-guard: שגיאה (${error instanceof Error ? error.message : 'לא ידועה'}), הכתיבה לא נבדקה.`)
   }
 })
