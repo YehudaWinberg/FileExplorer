@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import type { FileSystemEntry } from '../lib/models/entry'
 import type { SortKey } from '../lib/models/sort'
 import { useExplorer } from '../state/useExplorer'
-import { getFileKind, getTypeLabel } from '../lib/utils/fileTypes'
+import { getFileKind, getTypeLabel, isHtmlFile } from '../lib/utils/fileTypes'
 import { formatCount, formatDate, formatElapsedDays, formatSize } from '../lib/utils/format'
 import { SCALE_GRADIENT, isLargeFile, scaleColor, sizeScalePosition } from '../lib/utils/largeFiles'
 import { sortEntries } from '../lib/utils/sortEntries'
 import { filterByTypes, getTypeOptions } from '../lib/utils/typeFilter'
 import { EmptyState } from './EmptyState'
+import { HtmlPreviewDialog } from './HtmlPreviewDialog'
 import { FileKindIcon, FilterIcon, SortArrowIcon } from './icons'
 import { useLineCounts, type LineCount } from './useLineCounts'
 
@@ -178,6 +179,10 @@ export function FileList() {
   const orderedIds = useMemo(() => sorted.map((e) => e.id), [sorted])
   const selected = useMemo(() => new Set(state.selection), [state.selection])
   const lineCountOf = useLineCounts(state.entries)
+  const [htmlPreview, setHtmlPreview] = useState<FileSystemEntry | null>(null)
+  const closeHtmlPreview = useCallback(() => setHtmlPreview(null), [])
+  // דיאלוג שהקובץ שלו כבר אינו ברשימה (ניווט או רענון) לא מוצג.
+  const activePreview = htmlPreview && state.entries.includes(htmlPreview) ? htmlPreview : null
 
   if (state.status === 'loading') return <EmptyState title="טוען..." />
   if (state.status === 'error') {
@@ -186,6 +191,7 @@ export function FileList() {
 
   return (
     <div className="file-view">
+      {activePreview && <HtmlPreviewDialog entry={activePreview} onClose={closeHtmlPreview} />}
       <div className="file-view__scroll">
         <div className="list" role="table" aria-label="תוכן התיקייה" onClick={actions.clearSelection}>
           <div role="row" className="row row--header" onClick={(e) => e.stopPropagation()}>
@@ -241,7 +247,10 @@ export function FileList() {
                   event.stopPropagation()
                   actions.select(entry.id, event.ctrlKey || event.metaKey, event.shiftKey, orderedIds)
                 }}
-                onOpen={() => entry.folder && actions.openFolder(entry.folder)}
+                onOpen={() => {
+                  if (entry.folder) actions.openFolder(entry.folder)
+                  else if (isHtmlFile(entry)) setHtmlPreview(entry)
+                }}
               />
             ))
           )}

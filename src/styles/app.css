@@ -1244,3 +1244,52 @@ button.crumb:hover {
 .choice__action:hover {
   background: var(--bg-hover);
 }
+
+/* ---------- HTML preview dialog ---------- */
+.html-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.html-preview {
+  width: 80vw;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-layer);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.html-preview__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.html-preview__title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.html-preview__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.html-preview__frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #ffffff;
+}

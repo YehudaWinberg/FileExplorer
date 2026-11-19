@@ -40,7 +40,7 @@ add('powerpoint', 'מצגת PowerPoint', ['ppt', 'pptx'])
 add('text', 'מסמך טקסט', ['txt', 'log'])
 add('text', 'מסמך Markdown', ['md'])
 add('code', 'קובץ JSON', ['json'])
-add('code', 'קובץ קוד', ['js', 'jsx', 'ts', 'tsx', 'cs', 'py', 'java', 'html', 'css', 'xml', 'yml', 'yaml', 'sql', 'sh', 'ps1', 'cpp', 'c', 'h'])
+add('code', 'קובץ קוד', ['js', 'jsx', 'ts', 'tsx', 'cs', 'py', 'java', 'html', 'htm', 'css', 'xml', 'yml', 'yaml', 'sql', 'sh', 'ps1', 'cpp', 'c', 'h'])
 add('archive', 'תיקייה דחוסה', ['zip', 'rar', '7z', 'tar', 'gz'])
 add('audio', 'קובץ שמע', ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'])
 add('video', 'קובץ וידאו', ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'webm'])
@@ -61,4 +61,9 @@ export function getTypeLabel(entry: Pick<FileSystemEntry, 'kind' | 'extension'>)
   const known = TYPES[entry.extension]
   if (known) return known.label
   return entry.extension ? `קובץ ${entry.extension.toUpperCase()}` : 'קובץ'
+}
+
+/** האם הקובץ הוא דף HTML (`.html`/`.htm`) הניתן לקריאה, שאפשר להציג בתצוגה מקדימה. */
+export function isHtmlFile(entry: Pick<FileSystemEntry, 'kind' | 'extension' | 'unreadable'>): boolean {
+  return entry.kind === 'file' && !entry.unreadable && ['html', 'htm'].includes(entry.extension.toLowerCase())
 }
