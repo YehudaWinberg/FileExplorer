@@ -6,6 +6,8 @@
   },
   "hooks": {
     "PreToolUse": [
+      { "hooks": [ { "type": "command", "timeout": 5, "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/audit-log/audit-log.mjs\"" } ] },
+
       {
         "matcher": "Bash|PowerShell",
         "hooks": [
@@ -26,6 +28,7 @@
       }
     ],
     "PostToolUse": [
+      { "hooks": [ { "type": "command", "timeout": 5, "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/audit-log/audit-log.mjs\"" } ] },
       {
         "matcher": "Edit|Write",
         "hooks": [
@@ -37,6 +40,7 @@
       }
     ],
     "Stop": [
+      { "hooks": [ { "type": "command", "timeout": 5, "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/audit-log/audit-log.mjs\"" } ] },
       { "hooks": [ { "type": "command", "timeout": 120,
         "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-on-stop/check-on-stop.mjs\"" } ] }
     ]
