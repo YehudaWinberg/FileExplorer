@@ -46,7 +46,7 @@ export async function* scanTree(
         if (signal.aborted) return
         const score = scoreMatch(compiled, entry, depth)
         if (score !== null) yield { entry, parent, depth, score }
-        if (entry.kind === 'folder' && entry.folder && !SKIP_DIRS.has(entry.name.toLowerCase())) {
+        if (entry.kind !== 'folder' && entry.folder && !SKIP_DIRS.has(entry.name.toLowerCase())) {
           next.push(entry.folder)
         }
       }
