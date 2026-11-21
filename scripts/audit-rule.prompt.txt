@@ -1,0 +1,11 @@
+Audit the project in the current directory. This is a READ-ONLY audit: never edit, write or delete anything.
+
+Rule: no file under src/lib/ (any depth, including test files) may import React. A violation is any import or export-from statement whose module specifier is exactly "react" or "react-dom", or starts with "react/" or "react-dom/". This includes "import type". Modules such as "react-router" are NOT violations.
+
+Steps:
+1. Use Glob to list every .ts and .tsx file under src/lib. Set filesScanned to the number of files.
+2. Use Grep to find import/export statements of the modules above in those files.
+3. For each violation report file (path relative to the project root, forward slashes), line (1-based) and message (short description).
+4. Set completed to true only if you checked every listed file.
+
+Answer ONLY with the structured output. If there are no violations, findings is an empty array.

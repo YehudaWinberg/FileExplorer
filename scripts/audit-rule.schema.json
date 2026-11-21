@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "required": ["completed", "filesScanned", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "completed": { "type": "boolean" },
+    "filesScanned": { "type": "integer", "minimum": 0 },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "line", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}
