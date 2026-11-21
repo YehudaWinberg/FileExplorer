@@ -211,13 +211,17 @@ function PreviewSection({ name, preview }: { name: string; preview: Async<string
  */
 export function FileInfo({ entry }: { entry: FileSystemEntry }) {
   const { location } = useExplorer()
+  // הטעינות תלויות בזהות האובייקט; כשפרטי הקובץ (גודל/תאריך) מגיעים נוצר אובייקט חדש לאותו קובץ,
+  // ולכן הן נעולות על ה-entry הראשון של ה-id כדי שלא ייטענו מחדש (וייווצר Blob URL נוסף).
+  const [loadEntry, setLoadEntry] = useState(entry)
+  if (loadEntry.id !== entry.id) setLoadEntry(entry)
   const isImage = getFileKind(entry) === 'image' && !entry.unreadable
   const isPdf = getFileKind(entry) === 'pdf' && !entry.unreadable
-  const { size, exif, preview } = useImageExtras(entry, isImage)
-  const pdfPreview = usePdfPreview(entry, isPdf)
+  const { size, exif, preview } = useImageExtras(loadEntry, isImage)
+  const pdfPreview = usePdfPreview(loadEntry, isPdf)
   const kind = getFileKind(entry)
   const mediaKind = (kind === 'audio' || kind === 'video') && !entry.unreadable ? kind : null
-  const mediaPreview = useMediaPreview(entry, mediaKind !== null)
+  const mediaPreview = useMediaPreview(loadEntry, mediaKind !== null)
   const app = getOpenWithApp(entry.extension)
   const resultParent = useSearchOptional()?.session?.results.find((r) => r.entry.id === entry.id)?.parent
   const path =

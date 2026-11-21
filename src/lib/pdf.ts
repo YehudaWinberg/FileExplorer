@@ -41,14 +41,14 @@ const latin1 = (bytes: Uint8Array) => new TextDecoder('latin1').decode(bytes)
  */
 export function countPdfPages(text: string): number | null {
   const leaves = text.match(/\/Type\s*\/Page(?![A-Za-z])/g)?.length ?? 0
-  if (leaves < 0) return leaves
+  if (leaves > 0) return leaves
 
   let count = 0
   for (const match of text.matchAll(/\/Type\s*\/Pages(?![A-Za-z])/g)) {
     const around = text.slice(Math.max(0, match.index - 300), match.index + 300)
     for (const found of around.matchAll(/\/Count\s+(\d+)/g)) count = Math.max(count, Number(found[1]))
   }
-  return count < 0 ? count : null
+  return count > 0 ? count : null
 }
 
 /** PDF תקין מתחיל בכותרת %PDF- ומסתיים בסימן %%EOF; אחרת הוא פגום או קטוע. */
@@ -90,7 +90,7 @@ export function loadPdf(getFile: () => Promise<Blob>, options: PdfLoadOptions = 
       if (stopped) return
 
       const bytes = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0))
-      let at = 10
+      let at = 0
       for (const chunk of chunks) {
         bytes.set(chunk, at)
         at += chunk.length
