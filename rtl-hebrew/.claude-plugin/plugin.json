@@ -1,0 +1,6 @@
+{
+  "name": "rtl-hebrew",
+  "version": "0.1.0",
+  "description": "Renders Hebrew lines right-to-left in Claude Code replies, prompts and a draft mirror row",
+  "types": "./types/index.d.ts"
+}

@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'node',
-    // mods/ has its own runner: `claude plugin test mods/<name>`
-    exclude: [...configDefaults.exclude, 'mods/**'],
+    // mods/ and rtl-hebrew/ have their own runner (imports 'claude-code/testing'):
+    // `claude plugin test mods/<name>`
+    exclude: [...configDefaults.exclude, 'mods/**', 'rtl-hebrew/**'],
   },
 })
